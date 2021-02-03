@@ -1,0 +1,47 @@
+html,
+body {
+  height: 100%;
+}
+
+/* Login page */
+
+body {
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-align: center;
+  align-items: center;
+  padding-bottom: 80px;
+  background-color: #001466;
+}
+
+.loginForm {
+  width: 100%;
+  max-width: 330px;
+  padding: 15px;
+  margin: auto;
+}
+
+.loginForm h1 {
+    color: white;
+}
+
+.loginForm .form-control {
+  position: relative;
+  box-sizing: border-box;
+  height: auto;
+  padding: 10px;
+  font-size: 16px;
+}
+.form-signin .form-control:focus {
+  z-index: 2;
+}
+.form-signin input[type="email"] {
+  margin-bottom: 10px;
+  border-radius: 0;
+}
+
+.error {
+    color: red;
+}
+
+/* Homepage */
