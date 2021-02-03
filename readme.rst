@@ -8,12 +8,12 @@ SEAS booking system is a simple codeignter application to manage equipment loans
 Features
 *******************
 
-*Book out Equipment - Allows IT Department to loan out equipment on behalf of end users.
-**Overdue Bookings - The system will alert users and the IT Department when bookings have not been returned by the end loan date
-**Reservation - Reservation can be made on equipment on behalf of end users
-*Book in Setups - Book in setups that are coming up in the future
-**Notification to IT Department when a setup is about to begin
-**Asset History - View a history of who has booked each asset.
+* Book out Equipment - Allows IT Department to loan out equipment on behalf of end users.
+** Overdue Bookings - The system will alert users and the IT Department when bookings have not been returned by the end loan date
+** Reservation - Reservation can be made on equipment on behalf of end users
+* Book in Setups - Book in setups that are coming up in the future
+** Notification to IT Department when a setup is about to begin
+** Asset History - View a history of who has booked each asset.
 
 *******************
 Server Requirements
