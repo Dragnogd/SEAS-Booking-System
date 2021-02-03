@@ -18,9 +18,9 @@ Features
 *******************
 Server Requirements
 *******************
-
-*PHP version 5.6 or newer
-*A server running IIS
+* A webserver
+* PHP version 5.6 or newer
+* MYSQL database
 
 ************
 Installation
