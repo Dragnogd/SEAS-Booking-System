@@ -2,7 +2,7 @@
 SEAS Booking System (Simple Equipment and Setup Booking System)
 ###################
 
-SEAS booking system is a simple codeignter application to manage equipment loans and setups in a school or other environments. There is now login system as the system is intended for use by IT Departments to keep track of equipment that is loaned to users or setups that need to be done
+SEAS booking system is a simple codeignter application to manage equipment loans and setups in a school or other environments. The system is intended for use by IT Departments to keep track of equipment that is loaned to users or setups that need to be done.
 
 *******************
 Features
