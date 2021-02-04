@@ -18,7 +18,7 @@
 						</td>
 					</tr>
 					<tr>
-						<td valign="top" style="color:#999; padding:20px; text-align:center; font-size:12px; font-family:'Trebuchet MS',Arial,Helvetica,sans-serif"><p>SEAS Booking System by Ryan Coombes 2018-2021</p></td>
+						<td valign="top" style="color:#999; padding:20px; text-align:center; font-size:12px; font-family:'Trebuchet MS',Arial,Helvetica,sans-serif"><a href="https://github.com/Dragnogd/SEAS-Booking-System"><p>SEAS Booking System</p></a></td>
 					</tr>
 				</tbody>
 			</table>
