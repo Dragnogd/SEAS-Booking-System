@@ -279,7 +279,7 @@ class ManageLoans extends CI_Controller {
 					$page_data['TYPE'] = "Reservation";
 					$page_data["MESSAGE"] = "The following reservation has been created";
 				}else{
-					$page_data['TYPE'] = "Booked";
+					$page_data['TYPE'] = "Booking";
 					$page_data["MESSAGE"] = "The following booking has been created";
 				}
 
