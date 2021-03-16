@@ -8,7 +8,6 @@ class AssetHistory extends CI_Controller {
 		$this->load->view('templates/header');
 		$this->load->view('templates/navbarAdmin');
 		$this->load->view('assethistory');
-		$this->load->view('templates/footer');
 	}
 
 	public function getAssetHistory(){

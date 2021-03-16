@@ -8,6 +8,5 @@ class Settings extends CI_Controller {
 		$this->load->view('templates/header');
 		$this->load->view('templates/navbarAdmin');
 		$this->load->view('settings');
-		$this->load->view('templates/footer');
 	}
 }

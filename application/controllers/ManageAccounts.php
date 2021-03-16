@@ -8,7 +8,6 @@ class ManageAccounts extends CI_Controller {
 		$this->load->view('templates/header');
 		$this->load->view('templates/navbarAdmin');
 		$this->load->view('manageaccounts');
-		$this->load->view('templates/footer');
 	}
 
 	public function insertNewUser()
