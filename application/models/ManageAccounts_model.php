@@ -4,7 +4,7 @@ class ManageAccounts_model extends CI_Model {
     public function getListOfUsers()
 	{
 		//This will fetch a list of users currently in the database and construct a table which is returned.
-		$query = $this->db->query("SELECT * FROM users");
+		$query = $this->db->query("SELECT * FROM users ORDER BY Forename ASC, Surname ASC");
 		$htmlString = "<table id='usersTable' class='table'><thead><tr><th scope='col'>Forename</th><th scope='col'>Surname</th><th scope='col'>Email</th></tr></thead><tbody>";
 		foreach($query->result() as $row){
 			$userID = $row->UserID;
