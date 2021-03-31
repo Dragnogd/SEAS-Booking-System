@@ -60,7 +60,7 @@
 	<div class="row">
 	  <div class="col-lg-12">
 		<div class="card">
-		  <div class="card-body table-responsive p-0">
+		  <div id="assetsTable" class="card-body table-responsive p-0">
 			<?php
 				echo $this->ManageAssets_model->getListOfAssets();
 			?>
@@ -77,7 +77,7 @@
 <!-- /.content-wrapper -->
 
     <script type="text/javascript">
-        $(document).ready(function () {
+        function init(){
             //Add new asset to database
             $('#addAsset').on('click', function (e) {
                 var modal = bootbox.dialog({
@@ -94,31 +94,20 @@
                             var assetDescription = $('#assetDescription', '.bootbox').val();
                             var assetTag = $('#assetTag', '.bootbox').val();
                             var assetLocation = $('#assetLocation','.bootbox').val();
+                            var validationError = true;
 
                             //Send ajax request to the server to save to database and then update the table on the website accordingly
                             jQuery.ajax({
                                 type: "POST",
                                 url: "<?php echo base_url(); ?>" + "index.php/manageassets/insertNewAsset",
+                                async: false,
                                 data: {assetName: assetName, assetDescription: assetDescription, assetTag: assetTag, assetLocation: assetLocation},
                                 success: function(message) {
-                                    $.notify({
-                                        // options
-                                        icon: 'glyphicon glyphicon-warning-sign',
-                                        message: message,
-                                    },{
-                                        // settings
-                                        element: 'body',
-                                        type: "success",
-                                        allow_dismiss: true,
-                                        newest_on_top: true,
-                                        placement: {
-                                            align: "center"
-                                        },
-                                        showProgressbar: true,
-                                    });
-
                                     //If message returned is "success" then insert new asset into table and add to other dropdowns
                                     if(message == "Success"){
+                                        validationError = false;
+                                        toastr.success(assetName + ' has been created');
+
                                         //We need to get the ID of the asset we have just created
                                         jQuery.ajax({
                                             type: "POST",
@@ -134,9 +123,25 @@
                                             }
                                         });
 
+                                        //Update Table
+                                        jQuery.ajax({
+                                            type: "POST",
+                                            url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
+                                            success: function(message){
+                                                $("#assetsTable").html(message);
+                                                init();
+                                            }
+                                        });
+
+                                    }else{
+                                        $('#errorText','.bootbox').html(message + "<br>");
                                     }
-                                }
+                                },
                             });
+
+                            if(validationError == true){
+                                return false;
+                            }
                         }
                     },
                     {
@@ -146,7 +151,7 @@
                     ],
                     show: false,
                     onEscape: function() {
-                    modal.modal("hide");
+                        modal.modal("hide");
                     }
                 });
                 modal.modal("show");
@@ -165,6 +170,7 @@
                         callback: function(result) {
                             //Get the data that was input into each field
                             var assetID = $(".modal-body #assetToDelete").children(":selected").attr("id").split("-")[1];
+                            var assetName = $(".modal-body #assetToDelete").val();
 
                             //Send ajax request to the server to save to database and then update the table on the website accordingly
                             jQuery.ajax({
@@ -172,22 +178,6 @@
                                 url: "<?php echo base_url(); ?>" + "index.php/manageassets/deleteAsset",
                                 data: {assetID: assetID},
                                 success: function(message) {
-                                    $.notify({
-                                        // options
-                                        icon: 'glyphicon glyphicon-warning-sign',
-                                        message: message,
-                                    },{
-                                        // settings
-                                        element: 'body',
-                                        type: "success",
-                                        allow_dismiss: true,
-                                        newest_on_top: true,
-                                        placement: {
-                                            align: "center"
-                                        },
-                                        showProgressbar: true,
-                                    });
-
                                     //If message returned is "success" then insert new asset into table
                                     if(message == "Success"){
                                         //Remove asset from the table that was just deleted
@@ -197,6 +187,20 @@
                                         //Remove asset from ModifyAsset List
                                         $("#Modify-" + assetID).remove();
                                         $("#Delete-" + assetID).remove();
+
+                                        //Update Table
+                                        jQuery.ajax({
+                                            type: "POST",
+                                            url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
+                                            success: function(message){
+                                                $("#assetsTable").html(message);
+                                                init();
+                                            }
+                                        });
+
+                                        toastr.success(assetName + " has been deleted");
+                                    }else{
+                                        toastr.error(message);
                                     }
                                 }
                             });
@@ -305,12 +309,19 @@
                 });
 
             });
+        }
+
+        $(document).ready(function () {
+            init();
         });
     </script>
 
     <!-- Add Asset -->
     <div class="form-content addAsset" style="display:none;">
         <form>
+            <!-- Error -->
+            <span id="errorText"></span>
+
             <!-- Name -->
             <label>Asset Name</label>
             <input class="form-control" id="assetName" />

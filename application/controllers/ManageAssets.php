@@ -286,4 +286,9 @@ class ManageAssets extends CI_Controller {
 		echo json_encode($query);
 	}
 
+	public function getListOfAssets()
+	{
+		$this->load->model('ManageAssets_model');
+		return $this->ManageAssets_model->getListOfAssets();
+	}
 }

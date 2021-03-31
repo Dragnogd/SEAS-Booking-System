@@ -27,7 +27,7 @@
 		<script src="<?php echo base_url() . "public/plugins/toastr/toastr.min.js";?>"></script>
 
 		<!-- Custom CSS -->
-		<link href="<?php echo base_url() . "public/css/maindsda.csss";?>" rel="stylesheet">
+		<link href="<?php echo base_url() . "public/css/custom.css";?>" rel="stylesheet">
 
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
 
