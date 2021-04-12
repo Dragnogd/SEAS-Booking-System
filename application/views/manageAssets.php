@@ -77,7 +77,6 @@
 <!-- /.content-wrapper -->
 
     <script type="text/javascript">
-        function init(){
             //Add new asset to database
             $('#addAsset').on('click', function (e) {
                 var modal = bootbox.dialog({
@@ -129,6 +128,7 @@
                                             url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
                                             success: function(message){
                                                 $("#assetsTable").html(message);
+                                                modal.modal("hide");
                                                 init();
                                             }
                                         });
@@ -219,6 +219,7 @@
                 modal.modal("show");
             });
 
+        function init(){
             //Modify asset in database
             $('#modifyAsset').on('click', function (e) {
                 var modal = bootbox.dialog({
