@@ -129,7 +129,6 @@
                                             success: function(message){
                                                 $("#assetsTable").html(message);
                                                 modal.modal("hide");
-                                                init();
                                             }
                                         });
 
@@ -194,7 +193,6 @@
                                             url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
                                             success: function(message){
                                                 $("#assetsTable").html(message);
-                                                init();
                                             }
                                         });
 
@@ -219,7 +217,6 @@
                 modal.modal("show");
             });
 
-        function init(){
             //Modify asset in database
             $('#modifyAsset').on('click', function (e) {
                 var modal = bootbox.dialog({
@@ -237,44 +234,45 @@
                             var assetTag = $('#assetNewTag', '.bootbox').val();
                             var assetLocation = $('#assetNewLocation','.bootbox').val();
                             var assetID = $('#assetNewID','.bootbox').val();
+                            var originalAssetTag = $('#originalAssetTag', '.bootbox').val();
+                            var validationError = true;
 
                             //Send ajax request to the server to save to database and then update the table on the website accordingly
                             jQuery.ajax({
                                 type: "POST",
                                 url: "<?php echo base_url(); ?>" + "index.php/manageassets/updateAsset",
-                                data: {assetID: assetID, assetName: assetName, assetDescription: assetDescription, assetTag: assetTag, assetLocation: assetLocation},
+                                data: {originalAssetTag: originalAssetTag, assetID: assetID, assetName: assetName, assetDescription: assetDescription, assetTag: assetTag, assetLocation: assetLocation},
                                 success: function(message) {
-                                    $.notify({
-                                        // options
-                                        icon: 'glyphicon glyphicon-warning-sign',
-                                        message: message,
-                                    },{
-                                        // settings
-                                        element: 'body',
-                                        type: "success",
-                                        allow_dismiss: true,
-                                        newest_on_top: true,
-                                        placement: {
-                                            align: "center"
-                                        },
-                                        showProgressbar: true,
-                                    });
-
                                     //If message returned is "success" then insert new asset into table and add to other dropdowns
+                                    console.log(message);
                                     if(message == "Success"){
-                                        //Modify Asset in Table
-                                        $("#" + assetID).remove();
-                                        $("#assetsTable > tbody").append("<tr id='" + assetID + "'><td>" + assetName + "</td><td>" + assetDescription + "</td><td>" + assetTag + "</td><td>" + assetLocation + "</td></tr>");
-
+                                        validationError = false;
+                                        toastr.success(assetName + ' has been modified');
 
                                         //Modify Asset in Delete Asset
                                         $("#Delete-" + assetID).remove();
                                         $("#Modify-" + assetID).remove();
                                         $("<option id='Modify-" + assetID + "'>" + assetName + " (" + assetTag + ")</option>").appendTo("#assetToModify");
                                         $("<option id='Delete-" + assetID + "'>" + assetName + " (" + assetTag + ")</option>").appendTo("#assetToDelete");
+
+                                        //Update Table
+                                        jQuery.ajax({
+                                            type: "POST",
+                                            url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
+                                            success: function(message){
+                                                $("#assetsTable").html(message);
+                                                modal.modal("hide");
+                                            }
+                                        });
+                                    }else{
+                                        $('#errorTextModify','.bootbox').html(message + "<br>");
                                     }
                                 }
                             });
+
+                            if(validationError == true){
+                                return false;
+                            }
                         }
                     },
                     {
@@ -284,7 +282,7 @@
                     ],
                     show: false,
                     onEscape: function() {
-                    modal.modal("hide");
+                        modal.modal("hide");
                     }
                 });
                 modal.modal("show");
@@ -292,6 +290,14 @@
 
             //Modify asset "Select Asset To Modify" clicked so load in relevant information
             $(document).on('click', '#assetToModify', function(e){
+                //Clear fields in case the ajax query fails
+                $("#assetNewName", '.bootbox').val("");
+                $("#assetNewDescription", '.bootbox').val("");
+                $("#assetNewTag", '.bootbox').val("");
+                $("#assetNewLocation", '.bootbox').val("");
+                $("#assetNewID", '.bootbox').val("");
+                $("#originalAssetTag", '.bootbox').val("");
+
                 var assetID = $(".modal-body #assetToModify").children(":selected").attr("id").split("-")[1];
 
                 //Fetch information about this assetTag from the database and return as JSON
@@ -306,15 +312,11 @@
                         $("#assetNewTag", '.bootbox').val(obj.AssetTag);
                         $("#assetNewLocation", '.bootbox').val(obj.AssetLocation);
                         $("#assetNewID", '.bootbox').val(assetID);
+                        $("#originalAssetTag", '.bootbox').val(obj.AssetTag);
                     }
                 });
 
             });
-        }
-
-        $(document).ready(function () {
-            init();
-        });
     </script>
 
     <!-- Add Asset -->
@@ -365,12 +367,16 @@
     <!-- Modify Asset -->
     <div class="form-content modifyAsset" style="display:none;">
         <form>
+            <!-- Error -->
+            <span id="errorTextModify"></span>
+
             <!-- Select Asset to Modify -->
             <label>Select Asset To Modify</label>
             <select class="form-control" id="assetToModify">
                 <?php
                     //Get a list of asset names & assets tags currently in db
                     $query = $this->db->query("SELECT AssetID, AssetName, AssetTag FROM assets");
+                    echo "<option>Select an asset to modify</option>";
                     foreach ($query->result() as $row)
                     {
                         echo "<option id='Modify-{$row->AssetID}'>{$row->AssetName} ({$row->AssetTag})";
@@ -399,5 +405,8 @@
 
             <!-- Asset ID -->
             <input id="assetNewID" type="hidden" />
+
+            <!-- Original AssetTag -->
+            <input id="originalAssetTag" type="hidden" />
         </form>
     </div>

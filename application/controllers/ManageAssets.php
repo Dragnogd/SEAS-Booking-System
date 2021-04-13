@@ -82,7 +82,7 @@ class ManageAssets extends CI_Controller {
 					//Check if the asset tag is not already in the database
 					$query = $this->db->query("SELECT * FROM assets WHERE AssetTag='" . $_POST['assetTag'] . "'")->row();
 					if(isset($query)){
-						if($query->AssetTag == $_POST['assetNewID']){
+						if($query->AssetTag == $_POST['originalAssetTag']){
 							$assetTag = $_POST['assetTag'];
 						}else{
 							echo "Asset Tag is already in use";
@@ -119,7 +119,7 @@ class ManageAssets extends CI_Controller {
 		if($this->db->affected_rows() > 0){
 			echo "Success";
 		} else {
-			echo "Error inserting asset into database";
+			echo "Error updating asset into database. Were any changes made?";
 		}
 
 	}
