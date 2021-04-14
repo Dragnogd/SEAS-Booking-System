@@ -168,40 +168,46 @@
                         className: "btn btn-primary pull-right",
                         callback: function(result) {
                             //Get the data that was input into each field
-                            var assetID = $(".modal-body #assetToDelete").children(":selected").attr("id").split("-")[1];
                             var assetName = $(".modal-body #assetToDelete").val();
+                            console.log(assetName);
 
-                            //Send ajax request to the server to save to database and then update the table on the website accordingly
-                            jQuery.ajax({
-                                type: "POST",
-                                url: "<?php echo base_url(); ?>" + "index.php/manageassets/deleteAsset",
-                                data: {assetID: assetID},
-                                success: function(message) {
-                                    //If message returned is "success" then insert new asset into table
-                                    if(message == "Success"){
-                                        //Remove asset from the table that was just deleted
-                                        $("#" + assetID).remove();
+                            if(assetName != null){
+                                var assetID = $(".modal-body #assetToDelete").children(":selected").attr("id").split("-")[1];
+                                //Send ajax request to the server to save to database and then update the table on the website accordingly
+                                jQuery.ajax({
+                                    type: "POST",
+                                    url: "<?php echo base_url(); ?>" + "index.php/manageassets/deleteAsset",
+                                    data: {assetID: assetID},
+                                    success: function(message) {
+                                        //If message returned is "success" then insert new asset into table
+                                        if(message == "Success"){
+                                            //Remove asset from the table that was just deleted
+                                            $("#" + assetID).remove();
 
+                                            //Remove asset from ModifyAsset List
+                                            $("#Modify-" + assetID).remove();
+                                            $("#Delete-" + assetID).remove();
 
-                                        //Remove asset from ModifyAsset List
-                                        $("#Modify-" + assetID).remove();
-                                        $("#Delete-" + assetID).remove();
+                                            //Update Table
+                                            jQuery.ajax({
+                                                type: "POST",
+                                                url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
+                                                success: function(message){
+                                                    $("#assetsTable").html(message);
+                                                }
+                                            });
 
-                                        //Update Table
-                                        jQuery.ajax({
-                                            type: "POST",
-                                            url: "<?php echo base_url(); ?>" + "index.php/manageassets/getListOfAssets",
-                                            success: function(message){
-                                                $("#assetsTable").html(message);
-                                            }
-                                        });
-
-                                        toastr.success(assetName + " has been deleted");
-                                    }else{
-                                        toastr.error(message);
+                                            toastr.success(assetName + " has been deleted");
+                                        }else{
+                                            toastr.error(message);
+                                            $('#errorTextDelete','.bootbox').html(message + "<br>");
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }else{
+                                $('#errorTextDelete','.bootbox').html("Select an asset to delete<br>");
+                                return false;
+                            }
                         }
                     },
                     {
@@ -349,12 +355,16 @@
     <!-- Delete Asset -->
     <div class="form-content deleteAsset" style="display:none;">
         <form>
+            <!-- Error -->
+            <span id="errorTextDelete"></span>
+
             <!-- Lists of assets to delete -->
             <label>Asset Location</label>
             <select class="form-control" id="assetToDelete">
                 <?php
                     //Get a list of asset names & assets tags currently in db
                     $query = $this->db->query("SELECT AssetID, AssetName, AssetTag FROM assets");
+                    echo "<option disabled selected value>Select an asset to delete</option>";
                     foreach ($query->result() as $row)
                     {
                         echo "<option id='Delete-{$row->AssetID}'>{$row->AssetName} ({$row->AssetTag})";
@@ -376,7 +386,7 @@
                 <?php
                     //Get a list of asset names & assets tags currently in db
                     $query = $this->db->query("SELECT AssetID, AssetName, AssetTag FROM assets");
-                    echo "<option>Select an asset to modify</option>";
+                    echo "<option disabled selected value>Select an asset to modify</option>";
                     foreach ($query->result() as $row)
                     {
                         echo "<option id='Modify-{$row->AssetID}'>{$row->AssetName} ({$row->AssetTag})";

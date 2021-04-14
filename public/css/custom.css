@@ -1,7 +1,3 @@
-#errorText{
-    color: red !important;
-}
-
-#errorTextModify{
+#errorText, #errorTextDelete, #errorTextModify{
     color: red !important;
 }
