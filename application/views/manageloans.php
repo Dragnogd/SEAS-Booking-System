@@ -16,7 +16,7 @@
                with font-awesome or any other icon font library -->
           <li class="nav-item">
             <a id="createBooking" href="#" class="nav-link">
-              <i class="nav-icon fas fa-book"></i>
+              <i class="nav-icon fas fa-plus"></i>
               <p>
                 New Loan
               </p>
@@ -214,223 +214,6 @@
 						});
 					}
 				}
-			});
-		});
-
-		//Create Booking
-		$('#createBooking').on('click', function (e) {
-			var modal = bootbox.dialog({
-				message: $(".createBooking").html(),
-				size: "large",
-				title: "Create New Loan",
-				buttons: [
-				{
-					label: "Save",
-					className: "btn btn-primary pull-right",
-					callback: function(result) {
-						//Get the data that was input into each field
-						var errorFound = false;
-
-						//Booking Type
-						// var bookingType = $('.modal-body input[name=bookingType]:checked').attr("id");
-						var bookingType = "bookingLoan";
-						//Booking Period
-						var bookingPeriod = $('.modal-body input[name=loanType]:checked').attr("id");
-						//User
-						var selectedUser = $(".modal-body #userSelected").children(":selected").attr("id");
-						//User
-						var reservation = $(".modal-body #reservation").prop('checked');
-						//Equipment
-						var assets = [];
-						$('#equipmentTable td:last-child a').each(function() {
-							if(jQuery.inArray($(this).attr("id"), assets) == -1) {
-								assets.push($(this).attr("id"));
-								console.log($(this).attr("id"));
-							}
-						});
-						//Additional Details
-						var additionalDetails = $(".modal-body #additionalDetails").val();
-
-						//Loan Start Date
-						var loanStartDate;
-						var loanEndDate;
-						var loanStartPeriod;
-						var loanEndPeriod;
-						if(bookingPeriod == "loanTypeMulti"){
-							loanStartPeriod = "9:00";
-							loanEndPeriod = "15:30";
-							loanStartDate = $('#loanStartDate', '.bootbox').val();
-							loanEndDate = $('#loanEndDate', '.bootbox').val();
-
-							//Loan start date not filled in
-							if(loanStartDate.length == 0){
-								errorFound = true;
-								$(".modal-body #loanStartDateLabel").css("color", "red");
-							} else{
-								$(".modal-body #loanStartDateLabel").css("color", "black");
-							}
-
-							//Loan end date not filled in
-							if(loanEndDate.length == 0){
-								errorFound = true;
-								$(".modal-body #loanEndDateLabel").css("color", "red");
-							} else{
-								$(".modal-body #loanEndDateLabel").css("color", "black");
-							}
-						} else if(bookingPeriod == "loanTypeSingle"){
-							loanStartPeriod = $('#loanStartTime', '.bootbox').val();
-							loanEndPeriod = $('#loanEndTime', '.bootbox').val();
-							loanStartDate = $('#loanDate', '.bootbox').val();
-							loanEndDate = $('#loanDate', '.bootbox').val();
-
-							//Loan Date not filled in
-							if(loanStartDate.length == 0){
-								errorFound = true;
-								$(".modal-body #loanDateLabel").css("color", "red");
-							} else{
-								$(".modal-body #loanDateLabel").css("color", "black");
-							}
-
-							if(loanStartTime.length == 0){
-								errorFound = true;
-								$(".modal-body #loanStartTimeLabel").css("color", "red");
-							} else{
-								$(".modal-body #loanStartTimeLabel").css("color", "black");
-							}
-
-							if(loanEndTime.length == 0){
-								errorFound = true;
-								$(".modal-body #loanEndTimeLabel").css("color", "red");
-							} else{
-								$(".modal-body #loanEndTimeLabel").css("color", "black");
-							}
-						}
-
-						//Booking Type not filled in
-						if(bookingType == undefined){
-							errorFound = true;
-							$(".modal-body #bookingTypeLabel").css("color", "red");
-						} else {
-							$(".modal-body #bookingTypeLabel").css("color", "black");
-						}
-
-						//Booking Period not filled in
-						if(bookingPeriod == undefined){
-							errorFound = true;
-							$(".modal-body #bookingPeriodLabel").css("color", "red");
-						} else {
-							$(".modal-body #bookingPeriodLabel").css("color", "black");
-						}
-
-						//User not selected
-						if($(".modal-body #userSelected").children(":selected").attr("id") == undefined){
-							errorFound = true;
-							$(".modal-body #userSelectedLabel").css("color", "red");
-						} else{
-							$(".modal-body #userSelectedLabel").css("color", "black");
-						};
-
-						//No Equipment selected
-						console.log($('#equipmentTable tr').length);
-						if($('#equipmentTable tr').length == 2){
-							errorFound = true;
-							$(".modal-body #equipmentTableLabel").css("color", "red");
-						} else {
-							$(".modal-body #equipmentTableLabel").css("color", "black");
-						}
-
-						if(errorFound == false){
-							//Send ajax request to the server to save to database and then update the table on the website accordingly
-							jQuery.ajax({
-								type: "POST",
-								url: "<?php echo base_url(); ?>" + "index.php/manageloans/insertBooking",
-								data: {assets: assets, loanStartDate: loanStartDate, loanEndDate: loanEndDate, additionalDetails: additionalDetails, loanStartPeriod: loanStartPeriod, loanEndPeriod: loanEndPeriod, bookingType: bookingType, bookingPeriod: bookingPeriod, selectedUser: selectedUser, reservation: reservation},
-								dataType: 'json',
-								success: function(objJSON) {
-									var severity = "";
-									$.each(objJSON, function(index, element) {
-										console.log(element)
-
-										if(element == "Success"){
-											severity = "success"
-										} else if(element == "Warning"){
-											severity = "warning"
-										} else if(element == "Danger"){
-											severity = "danger";
-										} else {
-											//Output the message
-											if(severity == "success"){
-												toastr.success('Booking created');
-
-												//Wait 5 seconds than redirect back to homepage
-												jQuery.ajax({
-													type: "POST",
-													url: "<?php echo base_url(); ?>" + "index.php/manageLoans/getListOfLoans",
-													success: function(message){
-														$("#loansTable").html(message);
-														init();
-													}
-												});
-											}else if(severity == "warning" || severity == "danger"){
-												toastr.error('The following assets could not be booked. ' + element);
-											}
-										}
-									});
-								}
-							});
-						}
-					}
-				},
-				{
-					label: "Cancel",
-					className: "btn btn-danger pull-right",
-				}
-				],
-				show: false,
-				onEscape: function() {
-				modal.modal("hide");
-				}
-			});
-
-			modal.modal("show");
-			$(".modal-body #singleDayBooking").hide();
-			$(".modal-body #multiDayBooking").hide();
-
-			modal.on("shown.bs.modal", function() {
-				var currentDate = new Date();
-				$('.datetimepicker6').datetimepicker({
-					format: "YYYY-MM-DD",
-					minDate: currentDate
-				});
-				$('.datetimepicker7').datetimepicker({
-					format: "YYYY-MM-DD",
-					minDate: currentDate
-				});
-				$('.datetimepicker8').datetimepicker({
-					useCurrent: false,
-					format: "YYYY-MM-DD",
-					minDate: currentDate
-				});
-				$(".datetimepicker7").on("change.datetimepicker", function (e) {
-					$('.datetimepicker8').datetimepicker('minDate', e.date);
-				});
-				$(".datetimepicker8").on("change.datetimepicker", function (e) {
-					$('.datetimepicker7').datetimepicker('maxDate', e.date);
-				});
-				$('.datetimepicker9').datetimepicker({
-					useCurrent: false,
-					format: "HH:mm",
-				});
-				$('.datetimepicker10').datetimepicker({
-					useCurrent: false,
-					format: "HH:mm",
-				});
-				$(".datetimepicker9").on("change.datetimepicker", function (e) {
-					$('.datetimepicker10').datetimepicker('minDate', e.date);
-				});
-				$(".datetimepicker10").on("change.datetimepicker", function (e) {
-					$('.datetimepicker9').datetimepicker('maxDate', e.date);
-				});
 			});
 		});
 
@@ -674,6 +457,299 @@
 			});
 		});
 
+		//-----------------//
+		//-Modify Booking-//
+		//----------------//
+
+		$(document).on('input', '#selectBookingID', function(e) {
+			var loanID = $(".modal-body #selectBookingID").children(":selected").attr("id");
+
+			//Send of ajax request to populate the booking fields
+			jQuery.ajax({
+				type: "POST",
+				url: "<?php echo base_url(); ?>" + "index.php/manageloans/getLoanInfo",
+				data: {loanID: loanID},
+				success: function(loanID) {
+					var obj = JSON.parse(loanID);
+
+					//Booking Loan
+					if(obj.LoanType == "bookingLoan"){
+						$(".modal-body #bookingLoan").prop('checked', true)
+					} else if(obj.LoanType == "bookingSetup"){
+						$(".modal-body #bookingSetup").prop('checked', true)
+					}
+
+					//Booking Period
+					if(obj.LoanStartDate == obj.LoanEndDate){
+						$(".modal-body #loanTypeSingle").prop('checked', true)
+						$(".modal-body #singleDayBooking").show();
+						$(".modal-body #multiDayBooking").hide();
+
+						//Date
+						$(".modal-body #loanDate").val(obj.LoanStartDate)
+
+						//Start Period
+						$(".modal-body #selectStartPeriod option[id='" + obj.LoanStartPeriod +"']").prop('selected', true);
+
+						//End Period
+						$(".modal-body #selectEndPeriod option[id='" + obj.LoanEndPeriod +"']").prop('selected', true);
+					} else{
+						$(".modal-body #loanTypeMulti").prop('checked', true)
+						$(".modal-body #singleDayBooking").hide();
+						$(".modal-body #multiDayBooking").show();
+
+						//Start Date
+						$(".modal-body #loanStartDate").val(obj.LoanStartDate)
+
+						//End Date
+						$(".modal-body #loanEndDate").val(obj.LoanEndDate)
+					}
+
+					//User
+					$(".modal-body #userSelected option[id='" + obj.UserID +"']").prop('selected', true);
+
+					//Additional Details
+					$(".modal-body #additionalDetails").val(obj.AdditionalNotes)
+
+					//Get Equipment
+					jQuery.ajax({
+						type: "POST",
+						url: "<?php echo base_url(); ?>" + "index.php/manageloans/getEquipmentFromLoanID",
+						data: {loanID: loanID},
+						success: function(equipment) {
+
+						}
+					});
+
+					//$("#assetsTable > tbody").append("<tr id='" + obj.AssetID + "'><td>" + assetName + "</td><td>" + assetDescription + "</td><td>" + assetTag + "</td><td>" + assetLocation + "</td></tr>");
+
+					//Add to the delete asset dropdown
+					//$("<option id='Delete-" + obj.AssetID + "'>" + assetName + " (" + assetTag + ")</option>").appendTo("#assetToDelete");
+					//$("<option id='Modify-" + obj.AssetID + "'>" + assetName + " (" + assetTag + ")</option>").appendTo("#assetToModify");
+				}
+			});
+		});
+	}
+
+	$(document).ready(function () {
+		//Create Booking
+		$('#createBooking').on('click', function (e) {
+			var modal = bootbox.dialog({
+				message: $(".createBooking").html(),
+				size: "large",
+				title: "Create New Loan",
+				buttons: [
+				{
+					label: "Save",
+					className: "btn btn-primary pull-right",
+					callback: function(result) {
+						//Get the data that was input into each field
+						var errorFound = false;
+
+						//Booking Type
+						// var bookingType = $('.modal-body input[name=bookingType]:checked').attr("id");
+						var bookingType = "bookingLoan";
+						//Booking Period
+						var bookingPeriod = $('.modal-body input[name=loanType]:checked').attr("id");
+						//User
+						var selectedUser = $(".modal-body #userSelected").children(":selected").attr("id");
+						//User
+						var reservation = $(".modal-body #reservation").prop('checked');
+						//Equipment
+						var assets = [];
+						$('#equipmentTable td:last-child a').each(function() {
+							if(jQuery.inArray($(this).attr("id"), assets) == -1) {
+								assets.push($(this).attr("id"));
+								console.log($(this).attr("id"));
+							}
+						});
+						//Additional Details
+						var additionalDetails = $(".modal-body #additionalDetails").val();
+
+						//Loan Start Date
+						var loanStartDate;
+						var loanEndDate;
+						var loanStartPeriod;
+						var loanEndPeriod;
+						if(bookingPeriod == "loanTypeMulti"){
+							loanStartPeriod = "9:00";
+							loanEndPeriod = "15:30";
+							loanStartDate = $('#loanStartDate', '.bootbox').val();
+							loanEndDate = $('#loanEndDate', '.bootbox').val();
+
+							//Loan start date not filled in
+							if(loanStartDate.length == 0){
+								errorFound = true;
+								$(".modal-body #loanStartDateLabel").css("color", "red");
+							} else{
+								$(".modal-body #loanStartDateLabel").css("color", "black");
+							}
+
+							//Loan end date not filled in
+							if(loanEndDate.length == 0){
+								errorFound = true;
+								$(".modal-body #loanEndDateLabel").css("color", "red");
+							} else{
+								$(".modal-body #loanEndDateLabel").css("color", "black");
+							}
+						} else if(bookingPeriod == "loanTypeSingle"){
+							loanStartPeriod = $('#loanStartTime', '.bootbox').val();
+							loanEndPeriod = $('#loanEndTime', '.bootbox').val();
+							loanStartDate = $('#loanDate', '.bootbox').val();
+							loanEndDate = $('#loanDate', '.bootbox').val();
+
+							//Loan Date not filled in
+							if(loanStartDate.length == 0){
+								errorFound = true;
+								$(".modal-body #loanDateLabel").css("color", "red");
+							} else{
+								$(".modal-body #loanDateLabel").css("color", "black");
+							}
+
+							if(loanStartTime.length == 0){
+								errorFound = true;
+								$(".modal-body #loanStartTimeLabel").css("color", "red");
+							} else{
+								$(".modal-body #loanStartTimeLabel").css("color", "black");
+							}
+
+							if(loanEndTime.length == 0){
+								errorFound = true;
+								$(".modal-body #loanEndTimeLabel").css("color", "red");
+							} else{
+								$(".modal-body #loanEndTimeLabel").css("color", "black");
+							}
+						}
+
+						//Booking Type not filled in
+						if(bookingType == undefined){
+							errorFound = true;
+							$(".modal-body #bookingTypeLabel").css("color", "red");
+						} else {
+							$(".modal-body #bookingTypeLabel").css("color", "black");
+						}
+
+						//Booking Period not filled in
+						if(bookingPeriod == undefined){
+							errorFound = true;
+							$(".modal-body #bookingPeriodLabel").css("color", "red");
+						} else {
+							$(".modal-body #bookingPeriodLabel").css("color", "black");
+						}
+
+						//User not selected
+						if($(".modal-body #userSelected").children(":selected").attr("id") == undefined){
+							errorFound = true;
+							$(".modal-body #userSelectedLabel").css("color", "red");
+						} else{
+							$(".modal-body #userSelectedLabel").css("color", "black");
+						};
+
+						//No Equipment selected
+						console.log($('#equipmentTable tr').length);
+						if($('#equipmentTable tr').length == 2){
+							errorFound = true;
+							$(".modal-body #equipmentTableLabel").css("color", "red");
+						} else {
+							$(".modal-body #equipmentTableLabel").css("color", "black");
+						}
+
+						if(errorFound == false){
+							//Send ajax request to the server to save to database and then update the table on the website accordingly
+							jQuery.ajax({
+								type: "POST",
+								url: "<?php echo base_url(); ?>" + "index.php/manageloans/insertBooking",
+								data: {assets: assets, loanStartDate: loanStartDate, loanEndDate: loanEndDate, additionalDetails: additionalDetails, loanStartPeriod: loanStartPeriod, loanEndPeriod: loanEndPeriod, bookingType: bookingType, bookingPeriod: bookingPeriod, selectedUser: selectedUser, reservation: reservation},
+								dataType: 'json',
+								success: function(objJSON) {
+									var severity = "";
+									$.each(objJSON, function(index, element) {
+										console.log(element)
+
+										if(element == "Success"){
+											severity = "success"
+										} else if(element == "Warning"){
+											severity = "warning"
+										} else if(element == "Danger"){
+											severity = "danger";
+										} else {
+											//Output the message
+											if(severity == "success"){
+												toastr.success('Booking created');
+
+												//Wait 5 seconds than redirect back to homepage
+												jQuery.ajax({
+													type: "POST",
+													url: "<?php echo base_url(); ?>" + "index.php/manageLoans/getListOfLoans",
+													success: function(message){
+														$("#loansTable").html(message);
+														init();
+													}
+												});
+											}else if(severity == "warning" || severity == "danger"){
+												toastr.error('The following assets could not be booked. ' + element);
+											}
+										}
+									});
+								}
+							});
+						}
+					}
+				},
+				{
+					label: "Cancel",
+					className: "btn btn-danger pull-right",
+				}
+				],
+				show: false,
+				onEscape: function() {
+				modal.modal("hide");
+				}
+			});
+
+			modal.modal("show");
+			$(".modal-body #singleDayBooking").hide();
+			$(".modal-body #multiDayBooking").hide();
+
+			modal.on("shown.bs.modal", function() {
+				var currentDate = new Date();
+				$('.datetimepicker6').datetimepicker({
+					format: "YYYY-MM-DD",
+					minDate: currentDate
+				});
+				$('.datetimepicker7').datetimepicker({
+					format: "YYYY-MM-DD",
+					minDate: currentDate
+				});
+				$('.datetimepicker8').datetimepicker({
+					useCurrent: false,
+					format: "YYYY-MM-DD",
+					minDate: currentDate
+				});
+				$(".datetimepicker7").on("show.datetimepicker", function (e) {
+					$('.datetimepicker8').datetimepicker('minDate', e.date);
+				});
+				$(".datetimepicker8").on("show.datetimepicker", function (e) {
+					$('.datetimepicker7').datetimepicker('maxDate', e.date);
+				});
+				$('.datetimepicker9').datetimepicker({
+					useCurrent: true,
+					format: "HH:mm",
+				});
+				$('.datetimepicker10').datetimepicker({
+					useCurrent: true,
+					format: "HH:mm",
+					minDate: $('.datetimepicker9').datetimepicker('minDate', e.date),
+				});
+				$(".datetimepicker9").on("show.datetimepicker", function (e) {
+					$('.datetimepicker10').datetimepicker('minDate', e.date);
+				});
+				$(".datetimepicker10").on("show.datetimepicker", function (e) {
+					$('.datetimepicker9').datetimepicker('maxDate', e.date);
+				});
+			});
+		});
+
 		//Show Multi-Day Booking
 		$(document).on('change', '#loanTypeMulti', function() {
 			$('#equipmentTable tbody > tr').remove();
@@ -823,81 +899,6 @@
 			$(this).closest('tr').remove();
 		});
 
-		//-----------------//
-		//-Modify Booking-//
-		//----------------//
-
-		$(document).on('input', '#selectBookingID', function(e) {
-			var loanID = $(".modal-body #selectBookingID").children(":selected").attr("id");
-
-			//Send of ajax request to populate the booking fields
-			jQuery.ajax({
-				type: "POST",
-				url: "<?php echo base_url(); ?>" + "index.php/manageloans/getLoanInfo",
-				data: {loanID: loanID},
-				success: function(loanID) {
-					var obj = JSON.parse(loanID);
-
-					//Booking Loan
-					if(obj.LoanType == "bookingLoan"){
-						$(".modal-body #bookingLoan").prop('checked', true)
-					} else if(obj.LoanType == "bookingSetup"){
-						$(".modal-body #bookingSetup").prop('checked', true)
-					}
-
-					//Booking Period
-					if(obj.LoanStartDate == obj.LoanEndDate){
-						$(".modal-body #loanTypeSingle").prop('checked', true)
-						$(".modal-body #singleDayBooking").show();
-						$(".modal-body #multiDayBooking").hide();
-
-						//Date
-						$(".modal-body #loanDate").val(obj.LoanStartDate)
-
-						//Start Period
-						$(".modal-body #selectStartPeriod option[id='" + obj.LoanStartPeriod +"']").prop('selected', true);
-
-						//End Period
-						$(".modal-body #selectEndPeriod option[id='" + obj.LoanEndPeriod +"']").prop('selected', true);
-					} else{
-						$(".modal-body #loanTypeMulti").prop('checked', true)
-						$(".modal-body #singleDayBooking").hide();
-						$(".modal-body #multiDayBooking").show();
-
-						//Start Date
-						$(".modal-body #loanStartDate").val(obj.LoanStartDate)
-
-						//End Date
-						$(".modal-body #loanEndDate").val(obj.LoanEndDate)
-					}
-
-					//User
-					$(".modal-body #userSelected option[id='" + obj.UserID +"']").prop('selected', true);
-
-					//Additional Details
-					$(".modal-body #additionalDetails").val(obj.AdditionalNotes)
-
-					//Get Equipment
-					jQuery.ajax({
-						type: "POST",
-						url: "<?php echo base_url(); ?>" + "index.php/manageloans/getEquipmentFromLoanID",
-						data: {loanID: loanID},
-						success: function(equipment) {
-
-						}
-					});
-
-					//$("#assetsTable > tbody").append("<tr id='" + obj.AssetID + "'><td>" + assetName + "</td><td>" + assetDescription + "</td><td>" + assetTag + "</td><td>" + assetLocation + "</td></tr>");
-
-					//Add to the delete asset dropdown
-					//$("<option id='Delete-" + obj.AssetID + "'>" + assetName + " (" + assetTag + ")</option>").appendTo("#assetToDelete");
-					//$("<option id='Modify-" + obj.AssetID + "'>" + assetName + " (" + assetTag + ")</option>").appendTo("#assetToModify");
-				}
-			});
-		});
-	}
-
-	$(document).ready(function () {
 		init()
 	});
 

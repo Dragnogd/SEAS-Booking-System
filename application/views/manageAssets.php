@@ -16,7 +16,7 @@
 		   with font-awesome or any other icon font library -->
 	  <li class="nav-item">
 		<a id="addAsset" href="#" class="nav-link">
-		  <i class="nav-icon fas fa-book"></i>
+		  <i class="nav-icon fas fa-plus"></i>
 		  <p>
 			Add Asset
 		  </p>
@@ -24,7 +24,7 @@
 	  </li>
 	  <li class="nav-item">
 		<a id="deleteAsset" href="#" class="nav-link">
-		  <i class="nav-icon fas fa-book"></i>
+		  <i class="nav-icon fas fa-trash-alt"></i>
 		  <p>
 			Delete Asset
 		  </p>
@@ -32,7 +32,7 @@
 	  </li>
 	  <li class="nav-item">
 		<a id="modifyAsset" href="#" class="nav-link">
-		  <i class="nav-icon fas fa-book"></i>
+		  <i class="nav-icon fas fa-undo-alt"></i>
 		  <p>
 			Modify Asset
 		  </p>
