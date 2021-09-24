@@ -4,7 +4,7 @@ class ManageAssets_model extends CI_Model {
 	public function getListOfAssets()
 	{
 		//This will fetch a list of assets currently in the database and construct a table which is returned.
-		$query = $this->db->query("SELECT * FROM assets ORDER BY AssetName");
+		$query = $this->db->query("SELECT * FROM assets ORDER BY AssetName,AssetTag");
 		$htmlString = "<table id='assetsTable' class='table'><thead><tr><th scope='col'>Name</th><th scope='col'>Description</th><th scope='col'>Asset Tag</th></tr></thead><tbody>";
 		foreach($query->result() as $row){
 			$assetID = $row->AssetID;
