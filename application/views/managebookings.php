@@ -138,7 +138,7 @@
                             var selectedUser = $(".modal-body #userSelected").children(":selected").attr("id");
                             //Equipment
                             var assets = [];
-                            $('#equipmentTable td:last-child a').each(function() {
+                            $('.modal-body #equipmentTable td:last-child a').each(function() {
                                 if(jQuery.inArray($(this).attr("id"), assets) == -1) {
                                     assets.push($(this).attr("id"));
                                     console.log($(this).attr("id"));
@@ -440,7 +440,7 @@
                             var selectedUser = $(".modal-body #userSelected").children(":selected").attr("id");
                             //Equipment
                             var assets = [];
-                            $('#equipmentTable td:last-child a').each(function() {
+                            $('.modal-body #equipmentTable td:last-child a').each(function() {
                                 if(jQuery.inArray($(this).attr("id"), assets) == -1) {
                                     assets.push($(this).attr("id"));
                                     console.log($(this).attr("id"));
