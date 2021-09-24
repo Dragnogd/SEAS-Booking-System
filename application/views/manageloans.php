@@ -239,7 +239,7 @@
 						var selectedUser = $(".modal-body #userSelected").children(":selected").attr("id");
 						//Equipment
 						var assets = [];
-						$('#equipmentTable td:last-child a').each(function() {
+						$('.modal-body #equipmentTable td:last-child a').each(function() {
 							if(jQuery.inArray($(this).attr("id"), assets) == -1) {
 								assets.push($(this).attr("id"));
 								console.log($(this).attr("id"));
@@ -557,7 +557,7 @@
 						var reservation = $(".modal-body #reservation").prop('checked');
 						//Equipment
 						var assets = [];
-						$('#equipmentTable td:last-child a').each(function() {
+						$('.modal-body #equipmentTable td:last-child a').each(function() {
 							if(jQuery.inArray($(this).attr("id"), assets) == -1) {
 								assets.push($(this).attr("id"));
 								console.log($(this).attr("id"));
@@ -896,7 +896,19 @@
 			$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + assetTag + '" id="' + id + '">' + item + '</option>');
 
 			//Remove from shopping cart
+			var selectedID = $(this).closest('tr').attr("id");
 			$(this).closest('tr').remove();
+
+			//$('#' + selectedID).remove();
+
+			var assets = [];
+			$('.modal-body #equipmentTable td:last-child a').each(function() {
+				//console.log(this);
+				if(jQuery.inArray($(this).attr("id"), assets) == -1) {
+					console.log("Pushing " + $(this).attr("id"));
+					assets.push($(this).attr("id"));
+				}
+			});
 		});
 
 		init()
