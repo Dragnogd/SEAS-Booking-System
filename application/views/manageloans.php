@@ -68,6 +68,9 @@
 	var loanEndDateFilled = false;
 	var loanType = null;
 
+	var equipmentCheck = false;
+	var queueEquipmentCheck = false;
+
   	function init(){
 		$(".completeBooking").on("click", function(){
 			var uniqueID = $(this).closest('tr').attr('id');
@@ -804,72 +807,108 @@
 		});
 
 		function checkDateInformation(){
-			//Clear equipment table if populated
-			$('#equipmentTable tbody > tr').remove();
+			if(equipmentCheck == false){
+				equipmentCheck = true;
 
-			console.log("In checkDateInformation");
-			if(loanType == "multi"){
-				console.log("In Multi");
-				if(loanStartDateFilled && loanEndDateFilled){
-					var startDate = $('#loanStartDate', '.bootbox').val();
-					var endDate = $("#loanEndDate", '.bootbox').val()
-					console.log("All Information Filled Out. Sending Ajax Request...")
-					console.log(startDate)
-					console.log(endDate)
-					jQuery.ajax({
-						type: "POST",
-						url: "<?php echo base_url(); ?>" + "index.php/manageloans/getAvaliableEquipementMulti",
-						data: {startDate: startDate, endDate: endDate},
-						dataType: "json",
-						success: function(objJSON) {
-							if (objJSON){
-								//Output the list of assets which are avalaible to be loaned out
-								console.log(objJSON)
+				//Clear equipment table if populated
+				$('#equipmentTable tbody > tr').remove();
+				console.log("In checkDateInformation");
+				if(loanType == "multi"){
+					console.log("In Multi");
+					if(loanStartDateFilled && loanEndDateFilled){
+						var startDate = $('#loanStartDate', '.bootbox').val();
+						var endDate = $("#loanEndDate", '.bootbox').val()
+						console.log("All Information Filled Out. Sending Ajax Request...")
+						console.log(startDate)
+						console.log(endDate)
+						jQuery.ajax({
+							type: "POST",
+							url: "<?php echo base_url(); ?>" + "index.php/manageloans/getAvaliableEquipementMulti",
+							data: {startDate: startDate, endDate: endDate},
+							dataType: "json",
+							success: function(objJSON) {
+								if (objJSON){
+									//Output the list of assets which are avalaible to be loaned out
+									console.log(objJSON)
 
-								//Clear the current shopping cart
-								$('#equipmentSelected option').remove();
-								$(".modal-body #equipmentSelected").append('<option>Please select equipment...');
+									//Clear the current shopping cart
+									$('#equipmentSelected option').remove();
+									$(".modal-body #equipmentSelected").append('<option>Please select equipment...');
 
-								for (var i = 0, len = objJSON.length; i < len; ++i) {
-									var asset = objJSON[i];
-									$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
+									for (var i = 0, len = objJSON.length; i < len; ++i) {
+										var asset = objJSON[i];
+										$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
+									}
+
+									equipmentCheck = false;
+
+									if(queueEquipmentCheck){
+										queueEquipmentCheck = false;
+										checkDateInformation()
+									}
 								}
 							}
+						});
+					}else{
+						equipmentCheck = false;
+
+						if(queueEquipmentCheck){
+							queueEquipmentCheck = false;
+							checkDateInformation()
 						}
-					});
-				}
-			}else if(loanType == "single"){
-				console.log("In Single");
-				if(selectLoanDateFilled && startPeriodFilled && endPeriodFilled){
-					var loanDate = $('#loanDate', '.bootbox').val();
-					var startPeriod = $('#loanStartTime', '.bootbox').val();
-					var endPeriod = $('#loanEndTime', '.bootbox').val();
-					console.log("All Information Filled Out. Sending Ajax Request...")
-					console.log(loanDate)
-					console.log(startPeriod)
-					console.log(endPeriod)
-					jQuery.ajax({
-						type: "POST",
-						url: "<?php echo base_url(); ?>" + "index.php/manageloans/getAvaliableEquipementSingle",
-						data: {loanDate: loanDate, startPeriod: startPeriod, endPeriod: endPeriod},
-						dataType: "json",
-						success: function(objJSON) {
-							if (objJSON){
-								//Output the list of assets which are avalaible to be loaned out
-								console.log(objJSON)
+					}
+				}else if(loanType == "single"){
+					console.log("In Single");
+					if(selectLoanDateFilled && startPeriodFilled && endPeriodFilled){
+						var loanDate = $('#loanDate', '.bootbox').val();
+						var startPeriod = $('#loanStartTime', '.bootbox').val();
+						var endPeriod = $('#loanEndTime', '.bootbox').val();
+						console.log("All Information Filled Out. Sending Ajax Request...")
+						console.log(loanDate)
+						console.log(startPeriod)
+						console.log(endPeriod)
 
-								//Clear the current shopping cart
-								$('#equipmentSelected option').remove();
-								$(".modal-body #equipmentSelected").append('<option>Please select equipment...');
+						//Clear the current shopping cart
+						$('#equipmentSelected option').remove();
+						$(".modal-body #equipmentSelected").append('<option>Loading...');
 
-								for (var i = 0, len = objJSON.length; i < len; ++i) {
-									var asset = objJSON[i];
-									$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
+						jQuery.ajax({
+							type: "POST",
+							url: "<?php echo base_url(); ?>" + "index.php/manageloans/getAvaliableEquipementSingle",
+							data: {loanDate: loanDate, startPeriod: startPeriod, endPeriod: endPeriod},
+							dataType: "json",
+							success: function(objJSON) {
+								if (objJSON){
+									//Output the list of assets which are avalaible to be loaned out
+									$('#equipmentSelected option').remove();
+									$(".modal-body #equipmentSelected").append('<option>Please select equipment...');
+
+									console.log(objJSON)
+									for (var i = 0, len = objJSON.length; i < len; ++i) {
+										var asset = objJSON[i];
+										$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
+									}
+									
+									equipmentCheck = false;
+
+									if(queueEquipmentCheck){
+										queueEquipmentCheck = false;
+										checkDateInformation()
+									}
 								}
 							}
+						});
+					}else{
+						equipmentCheck = false;
+
+						if(queueEquipmentCheck){
+							queueEquipmentCheck = false;
+							checkDateInformation()
 						}
-					});
+					}
 				}
+			}else{
+				queueEquipmentCheck = true;
 			}
 		}
 
@@ -883,6 +922,7 @@
 			$('#equipmentTable tbody').append('<tr><td>' + item + '<td><td><a data-asset-tag="' + assetTag + '" id="' + id + '" class="removeFromCart" href="#">Remove</a></td></tr>');
 
 			//Remove from equipment list
+			console.log(this);
 			$('option:selected', this).remove();
 		});
 
