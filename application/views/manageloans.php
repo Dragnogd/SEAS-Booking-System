@@ -15,10 +15,18 @@
           <!-- Add icons to the links using the .nav-icon class
                with font-awesome or any other icon font library -->
           <li class="nav-item">
-            <a id="createBooking" href="#" class="nav-link">
+            <a id="create" href="#" class="nav-link createLoan">
               <i class="nav-icon fas fa-plus"></i>
               <p>
                 New Loan
+              </p>
+            </a>
+          </li>
+		  <li class="nav-item">
+            <a id="modify" href="#" class="nav-link createLoan">
+			<i class="nav-icon fas fa-undo-alt"></i>
+              <p>
+                Modify Loan
               </p>
             </a>
           </li>
@@ -460,10 +468,6 @@
 			});
 		});
 
-		//-----------------//
-		//-Modify Booking-//
-		//----------------//
-
 		$(document).on('input', '#selectBookingID', function(e) {
 			var loanID = $(".modal-body #selectBookingID").children(":selected").attr("id");
 
@@ -536,11 +540,28 @@
 
 	$(document).ready(function () {
 		//Create Booking
-		$('#createBooking').on('click', function (e) {
+		$('.createLoan').on('click', function (e) {
+			//Check if we are creating or modifying a loan
+			console.log($(this).attr("id"));
+			var title = "";
+			var bookingOrModify = "booking";
+			if($(this).attr("id") == "create"){
+				title = "Create New Loan";
+
+				$("#selectBooking").hide();
+				$("#reasonForModificationDiv").hide();
+			}else if($(this).attr("id") == "modify"){
+				title = "Modify Existing Loan";
+				bookingOrModify = "modify";
+
+				$("#selectBooking").show();
+				$("#reasonForModificationDiv").show();
+			}
+
 			var modal = bootbox.dialog({
 				message: $(".createBooking").html(),
 				size: "large",
-				title: "Create New Loan",
+				title: title,
 				buttons: [
 				{
 					label: "Save",
@@ -552,22 +573,49 @@
 						//Booking Type
 						// var bookingType = $('.modal-body input[name=bookingType]:checked').attr("id");
 						var bookingType = "bookingLoan";
+						
 						//Booking Period
 						var bookingPeriod = $('.modal-body input[name=loanType]:checked').attr("id");
+						
 						//User
 						var selectedUser = $(".modal-body #userSelected").children(":selected").attr("id");
-						//User
+						
+						//Reservation
 						var reservation = $(".modal-body #reservation").prop('checked');
+						
 						//Equipment
 						var assets = [];
+						var assetsRemoved = [];
+						//Get the <a> tag from each item in the equipment table. This stores all the details about the item
+						//including the asset id, asset tag and whether the item is being added or modified for a booking
 						$('.modal-body #equipmentTable td:last-child a').each(function() {
-							if(jQuery.inArray($(this).attr("id"), assets) == -1) {
-								assets.push($(this).attr("id"));
-								console.log($(this).attr("id"));
+							//First lets establish if this a new item being added or item being removed from a booking
+							var creationType = $(this).attr("data-creation-type");
+							if(creationType == "create" || (creationType == "modify" && $(this).hasClass('removeFromCart'))){
+								//Adding a new asset
+								if(jQuery.inArray($(this).attr("id"), assets) == -1) {
+									//The item is not currently in the new assets array so lets add it in
+									assets.push($(this).attr("id"));
+								}
+							}else if(creationType == "modify"){
+								if(jQuery.inArray($(this).attr("id"), assetsRemoved) == -1) {
+									//The item is not currently in the new assets array so lets add it in
+									assetsRemoved.push($(this).attr("id"));
+								}
 							}
 						});
+						
 						//Additional Details
 						var additionalDetails = $(".modal-body #additionalDetails").val();
+
+						//Booking to modify
+						var modifyBookingID = -1;
+						if(bookingOrModify == "modify"){
+							modifyBookingID = $(".modal-body #bookingToModify").children(":selected").attr("id").split("-")[1];
+						}
+
+						//Reason for modification
+						var reasonForModify = $(".modal-body #reasonForModification").val();
 
 						//Loan Start Date
 						var loanStartDate;
@@ -657,12 +705,22 @@
 							$(".modal-body #equipmentTableLabel").css("color", "black");
 						}
 
+						//No reason given for modification
+						if(bookingOrModify == "modify"){
+							if($('#reasonForModification').length == 0){
+								errorFound = true;
+								$(".modal-body #reasonForModification").css("color", "red");
+							} else {
+								$(".modal-body #reasonForModification").css("color", "black");
+							}
+						}
+
 						if(errorFound == false){
 							//Send ajax request to the server to save to database and then update the table on the website accordingly
 							jQuery.ajax({
 								type: "POST",
 								url: "<?php echo base_url(); ?>" + "index.php/manageloans/insertBooking",
-								data: {assets: assets, loanStartDate: loanStartDate, loanEndDate: loanEndDate, additionalDetails: additionalDetails, loanStartPeriod: loanStartPeriod, loanEndPeriod: loanEndPeriod, bookingType: bookingType, bookingPeriod: bookingPeriod, selectedUser: selectedUser, reservation: reservation},
+								data: {assets: assets, loanStartDate: loanStartDate, loanEndDate: loanEndDate, additionalDetails: additionalDetails, loanStartPeriod: loanStartPeriod, loanEndPeriod: loanEndPeriod, bookingType: bookingType, bookingPeriod: bookingPeriod, selectedUser: selectedUser, reservation: reservation, bookingOrModify: bookingOrModify, assetsRemoved: assetsRemoved, modifyBookingID: modifyBookingID, reasonForModify: reasonForModify},
 								dataType: 'json',
 								success: function(objJSON) {
 									var severity = "";
@@ -883,7 +941,6 @@
 									$('#equipmentSelected option').remove();
 									$(".modal-body #equipmentSelected").append('<option>Please select equipment...');
 
-									console.log(objJSON)
 									for (var i = 0, len = objJSON.length; i < len; ++i) {
 										var asset = objJSON[i];
 										$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
@@ -919,7 +976,7 @@
 			var assetTag = $(".modal-body #equipmentSelected").children(":selected").attr("data-asset-tag");
 
 			//Add to shopping cart
-			$('#equipmentTable tbody').append('<tr><td>' + item + '<td><td><a data-asset-tag="' + assetTag + '" id="' + id + '" class="removeFromCart" href="#">Remove</a></td></tr>');
+			$('#equipmentTable tbody').append('<tr><td>' + item + '<td><td><a data-creation-type="create" data-asset-tag="' + assetTag + '" id="' + id + '" class="removeFromCart" href="#">Remove</a></td></tr>');
 
 			//Remove from equipment list
 			console.log(this);
@@ -930,14 +987,30 @@
 		$(document).on('click', '.removeFromCart', function(){
 			var id = $(this).attr("id");
 			var assetTag = $(this).attr("data-asset-tag");
+			var creationType = $(this).attr("data-creation-type");
 			var item = $(this).closest('tr').find('td:eq(0)').html();
 
-			//Add back to equipment Selection
-			$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + assetTag + '" id="' + id + '">' + item + '</option>');
+			console.log(creationType);
 
-			//Remove from shopping cart
-			var selectedID = $(this).closest('tr').attr("id");
-			$(this).closest('tr').remove();
+			if(creationType == "create"){
+				//Add back to equipment Selection
+				$(".modal-body #equipmentSelected").append('<option data-asset-tag="' + assetTag + '" id="' + id + '">' + item + '</option>');
+
+				//Remove from shopping cart
+				var selectedID = $(this).closest('tr').attr("id");
+				$(this).closest('tr').remove();
+			}else if(creationType == "modify"){
+				var selectedID = $(this).closest('tr').attr("id");
+
+				//Strike through item and colour red to indicate it is going to be removed
+				$(this).closest('tr').find("td:first").wrap("<strike>");
+				$(this).closest('tr').find("td:first").css("color","red");
+
+				//Change text from Remove to Add Back
+				$(this).closest('tr').find("td:last").find("a").text("Add Back");
+				$(this).closest('tr').find("td:last").find("a").addClass("addBackToCart");
+				$(this).closest('tr').find("td:last").find("a").removeClass("removeFromCart");
+			}
 
 			//$('#' + selectedID).remove();
 
@@ -951,6 +1024,160 @@
 			});
 		});
 
+		//Add Back to Cart
+		$(document).on('click', '.addBackToCart', function(){
+			var id = $(this).attr("id");
+			var assetTag = $(this).attr("data-asset-tag");
+			var creationType = $(this).attr("data-creation-type");
+			var item = $(this).closest('tr').find('td:eq(0)').html();
+
+			var selectedID = $(this).closest('tr').attr("id");
+
+			//Strike through item and colour red to indicate it is going to be removed
+			$(this).closest('tr').find("td:first").unwrap();
+			$(this).closest('tr').find("td:first").css("color","black");
+
+			//Change text from Remove to Add Back
+			$(this).closest('tr').find("td:last").find("a").text("Remove");
+			$(this).closest('tr').find("td:last").find("a").removeClass("addBackToCart");
+			$(this).closest('tr').find("td:last").find("a").addClass("removeFromCart");
+		});
+
+		//Modify user "Select user To Modify" clicked so load in relevant information
+		$(document).on('change', '#bookingToModify', function(){
+			var bookingID = $('#bookingToModify', '.bootbox').children(":selected").attr("id").split("-")[1];
+			console.log(bookingID);
+			//Fetch information about this bookingID from the database and return as JSON
+
+			var dialog = bootbox.dialog({
+				message: '<p class="text-center mb-0"><i class="fa fa-spin fa-cog"></i> Fetching Loan...</p>',
+				closeButton: false
+			});
+
+			jQuery.ajax({
+				type: "POST",
+				url: "<?php echo base_url(); ?>" + "index.php/manageloans/getBookingByID",
+				data: {bookingID: bookingID},
+				success: function(message) {
+					dialog.modal('hide');
+			 		var obj = jQuery.parseJSON(message);
+					console.log(obj);
+
+					//Single Day/Multi Day Booking
+					if(obj.loanStartDate == obj.loanEndDate){
+						//Single Day Booking
+
+						//Check the box
+						$("#loanTypeSingle", '.bootbox').prop("checked", true);
+
+						//Show appropriate controls
+						$('#equipmentTable tbody > tr').remove();
+						$('#equipmentSelected option').remove();
+						$("#singleDayBooking", '.bootbox').show();
+						$("#multiDayBooking", '.bootbox').hide();
+						loanType = "single";
+
+						//Fill out controls
+						$("#loanDate", '.bootbox').val(obj.loanStartDate);
+						$("#loanStartTime", '.bootbox').val(obj.loanStartPeriod);
+						$("#loanEndTime", '.bootbox').val(obj.loanEndPeriod);
+						selectLoanDateFilled = true
+						startPeriodFilled = true
+						endPeriodFilled = true
+
+						//Populate Equipment list
+						$.each(obj.assets, function(key,value) {
+							$.each(value, function(assetName,assetIds) {
+								var ids = assetIds.split(',');
+								var assetTag = ids[0];
+								var assetID = ids[1];
+
+								console.log(assetTag);
+								console.log(assetID);
+
+								//Add to shopping cart
+								$('#equipmentSelected option[id=' + assetID + ']', '.bootbox').prop('selected', true);
+								$('#equipmentTable tbody', '.bootbox').append('<tr><td>' + assetName + '<td><td><a data-creation-type="modify" data-asset-tag="' + assetTag + '" id="' + assetID + '" class="removeFromCart" href="#">Remove</a></td></tr>');
+							});
+						});
+
+						//Output the list of assets which are avalaible to be loaned out
+						$('#equipmentSelected option', '.bootbox').remove();
+						$(".modal-body #equipmentSelected", '.bootbox').append('<option>Please select equipment...');
+
+						for (var i = 0, len = obj.equipment.length; i < len; ++i) {
+							var asset = obj.equipment[i];
+							$(".modal-body #equipmentSelected", '.bootbox').append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
+						}
+					}else{
+						//Multi Day Booking
+
+						//Check the box
+						$("#loanTypeMulti", '.bootbox').prop("checked", true);
+
+						//Show appropriate controls
+						$('#equipmentTable tbody > tr').remove();
+						$('#equipmentSelected option').remove();
+						$("#multiDayBooking", '.bootbox').show();
+						$("#singleDayBooking", '.bootbox').hide();
+						loanType = "multi";
+
+						//Fill out controls
+						$("#loanStartDate", '.bootbox').val(obj.loanStartDate);
+						$("#loanEndDate", '.bootbox').val(obj.loanEndDate);
+						loanStartDateFilled = true
+						loanEndDateFilled = true
+
+						//Populate Equipment list
+						$.each(obj.assets, function(key,value) {
+							$.each(value, function(assetName,assetIds) {
+								var ids = assetIds.split(',');
+								var assetTag = ids[0];
+								var assetID = ids[1];
+
+								console.log(assetTag);
+								console.log(assetID);
+
+								//Add to shopping cart
+								$('#equipmentSelected option[id=' + assetID + ']', '.bootbox').prop('selected', true);
+								$('#equipmentTable tbody', '.bootbox').append('<tr><td>' + assetName + '<td><td><a data-creation-type="modify" data-asset-tag="' + assetTag + '" id="' + assetID + '" class="removeFromCart" href="#">Remove</a></td></tr>');
+							});
+						});
+
+						//Clear the current shopping cart
+						$('#equipmentSelected option', '.bootbox').remove();
+						$(".modal-body #equipmentSelected", '.bootbox').append('<option>Please select equipment...');
+
+						for (var i = 0, len = obj.equipment.length; i < len; ++i) {
+							var asset = obj.equipment[i];
+							$(".modal-body #equipmentSelected", '.bootbox').append('<option data-asset-tag="' + asset.AssetTag + '" id="' + asset.AssetID + '">' + asset.AssetName + ' (' + asset.AssetTag + ')');
+						}
+					}
+
+					//Select the user
+					$('#userSelected option[id=' + obj.userID + ']', '.bootbox').prop('selected', true);
+
+					//Add additional details
+					$("#additionalDetails", '.bootbox').val(obj.additionalNotes);	
+					
+					//Check if reservation
+					if(obj.loanStatus == "Reserved"){
+						console.log("Reserved");
+						$('#reservation', '.bootbox').prop('checked', true);
+					}else{
+						$('#reservation', '.bootbox').prop('checked', false);
+					}
+
+					//Reason for modification
+					$("#reasonForModification", '.bootbox').val(obj.reasonForModify);	
+				}
+			});
+		});
+
+		$(document).on('hidden.bs.modal', '.modal', function () {
+			$('.modal:visible').length && $(document.body).addClass('modal-open');
+		});
+
 		init()
 	});
 
@@ -962,6 +1189,21 @@
             <!-- <label id="bookingTypeLabel">Booking Type</label><br>
             <label class="radio-inline"><input type="radio" id="bookingLoan" name="bookingType">Loan</label>
             <label class="radio-inline"><input type="radio" id="bookingSetup" name="bookingType">Setup</label><br>  -->
+
+			<div id="selectBooking">
+				<label>Select booking id to modify</label>
+				<select class="form-control" id="bookingToModify">
+					<?php
+						//Get a list of user names & users tags currently in db
+						$query = $this->db->query("SELECT * FROM loans WHERE loanStatus='Booked' OR loanStatus='Reserved' OR loanStatus='Overdue' ORDER BY LoanBookingID ASC");
+						echo "<option>Please select a booking to modify...</>";
+						foreach ($query->result() as $row)
+						{
+							echo "<option id='Modify-{$row->LoanBookingID}'>{$row->LoanBookingID}</>";
+						}
+					?>
+				</select>
+			</div>
 
             <!-- Booking Type -->
             <label id="bookingPeriodLabel">Booking Period</label><br>
@@ -1053,6 +1295,12 @@
 			<label class="form-check-label" for="defaultCheck1">
 				Reservation
 			</label>
+			</div>
+
+			<!-- Reasons For Modification -->
+			<div id="reasonForModificationDiv">
+				<label>Reason for Modification</label>
+				<textarea class="form-control" id="reasonForModification"></textarea>
 			</div>
         </form>
     </div>

@@ -19,6 +19,7 @@ class ManageLoans extends CI_Controller {
 
 		//Set variables for all posted data
 		$assets = $this->input->post('assets', TRUE);
+		$assetsRemoved = $this->input->post('assetsRemoved', TRUE);
 		$startDate = $this->input->post('loanStartDate');
 		$endDate = $this->input->post('loanEndDate');
 		$startPeriod = $this->input->post('loanStartPeriod');
@@ -28,6 +29,9 @@ class ManageLoans extends CI_Controller {
 		$bookingType = $this->input->post('bookingType');
 		$user = $this->input->post('selectedUser', TRUE);
 		$isReservation = $this->input->post('reservation');
+		$bookingOrModify = $this->input->post('bookingOrModify');
+		$modifyBookingID = $this->input->post('modifyBookingID');
+		$reasonForModify = $this->input->post('reasonForModify');
 
 		//1.) Lets check all the posted variables are what we expected them to be
 		if(!(isset($user))){
@@ -58,6 +62,13 @@ class ManageLoans extends CI_Controller {
 			echo json_encode($returnMessage);
 			return false;
 		}
+		// if(!(isset($assetsRemoved))){
+		// 	//We have recieved no assets. This is no good :(
+		// 	$returnMessage->Severity = "Warning";
+		// 	$returnMessage->Message = "CRITICAL ERROR. cannot read assets removed array";
+		// 	echo json_encode($returnMessage);
+		// 	return false;
+		// }
 		if(!(isset($startDate))){
 			//No start date recieved
 			$returnMessage->Severity = "Warning";
@@ -86,16 +97,60 @@ class ManageLoans extends CI_Controller {
 			echo json_encode($returnMessage);
 			return false;
 		}
+		if(!(isset($bookingOrModify))){
+			//No end date recieved
+			$returnMessage->Severity = "Warning";
+			$returnMessage->Message = "Is this a new booking or modification of an existing booking?";
+			echo json_encode($returnMessage);
+			return false;
+		}
+		if(!(isset($modifyBookingID))){
+			//No end date recieved
+			$returnMessage->Severity = "Warning";
+			$returnMessage->Message = "No booking id returned or -1";
+			echo json_encode($returnMessage);
+			return false;
+		}else{
+			if($bookingOrModify == "modify" && $modifyBookingID == -1){
+				$returnMessage->Severity = "Warning";
+				$returnMessage->Message = "Modify booking did not return a valid booking id";
+				echo json_encode($returnMessage);
+				return false;
+			}
+		}
 
 		//2.) We have recieved all the data we were expecting. Next we need to check if the assets are still avaliable or not.
 		$allAssetsAvaliable = true; //Lets assume all assets are avaliable until proven otherwise
 		$assetsUnavaliable = []; //Store any assets which are unavaliable so we can remove from users shopping cart
+		$assetsAlreadyExist = []; //Used to keep track of assets already exisiting in a booking being modified
 
 		if($bookingPeriod == "loanTypeSingle"){
 			foreach($assets as $assetID){
 				$query2 = $this->db->query("SELECT * FROM loans RIGHT OUTER JOIN loansassetslink ON loans.LoanBookingID=loansassetslink.LoanBookingID");
 				foreach($query2->result() as $row2){
 					if($row2->AssetIDLoan == $assetID && $row2->LoanStatus != "Completed"){
+						if($bookingOrModify == "modify"){
+							//If we are modifying a booking we can ignore checks for exisiting assets already in the booking
+
+							//1. Get all assets in the booking currently
+							$queryAssets = $this->db->query("SELECT * FROM loansassetslink WHERE LoanBookingID=$modifyBookingID");
+
+							//2. Compare with updated list and add to assets if match in both, otherwise perform the usual checks
+							$assetFound = false;
+							foreach($queryAssets->result() as $assetsData){
+								if($assetsData->AssetIDLoan == $assetID){
+									//Assets already existed. No further checks needed here
+									$assetFound = true;
+									array_push($assetsAlreadyExist, $assetsData->AssetIDLoan);
+								}
+							}
+
+							//3. Ignore further checks if asset has been found in current booking
+							if($assetFound == true){
+								continue;
+							}
+						}
+						
 						//We have found a booking for this asset. Now check whether it clashes with the booking trying to be made
 						$assetAvaliableBefore = true;
 						$assetAvaliableAfter = true;
@@ -148,6 +203,27 @@ class ManageLoans extends CI_Controller {
 				$query2 = $this->db->query("SELECT * FROM loans RIGHT OUTER JOIN loansassetslink ON loans.LoanBookingID=loansassetslink.LoanBookingID");
 				foreach($query2->result() as $row2){
 					if($row2->AssetIDLoan == $assetID && $row2->LoanStatus != "Completed"){
+						if($bookingOrModify == "modify"){
+							//If we are modifying a booking we can ignore checks for exisiting assets already in the booking
+
+							//1. Get all assets in the booking currently
+							$queryAssets = $this->db->query("SELECT * FROM loansassetslink WHERE LoanBookingID=$modifyBookingID)");
+
+							//2. Compare with updated list and add to assets if match in both, otherwise perform the usual checks
+							$assetFound = false;
+							foreach($queryAssets->result() as $assetsData){
+								if($assetsData->AssetIDLoan == $assetID){
+									//Assets already existed. No further checks needed here
+									$assetFound = true;
+								}
+							}
+
+							//3. Ignore further checks if asset has been found in current booking
+							if($assetFound == true){
+								continue;
+							}
+						}
+						
 						log_message('error', "Found Asset: " . $row2->AssetIDLoan);
 						$assetAvaliableBefore = true;
 						$assetAvaliableAfter = true;
@@ -201,116 +277,224 @@ class ManageLoans extends CI_Controller {
 		//3.) Awesome all assets are still avaliable. Lets insert the booking into the table now.
 
 		if($allAssetsAvaliable){
-			//Insert a new booking into the loans table
-			$userID = $user;
-			$loanStatus = "";
-			if($isReservation == "true"){
-				$loanStatus = "Reserved";
-			}else{
-				$loanStatus = "Booked";
-			}
-			$query = $this->db->query("INSERT INTO loans (UserID,LoanStartDate,LoanEndDate,LoanStatus,AdditionalNotes,LoanStartPeriod,LoanEndPeriod,LoanType) VALUES ($userID, STR_TO_DATE('$startDate', '%Y-%m-%d'), STR_TO_DATE('$endDate', '%Y-%m-%d'),'$loanStatus',{$this->db->escape($additionalDetails)},'$startPeriod','$endPeriod','$bookingType')");
-
-			//Insert assets into assets table
-			//To do this we need to get the booking id from the previous query
-			$loanBookingID = $this->db->insert_id();
-			//Loop through each asset and add to loansssetslink table
-			foreach($assets as $assetID){
-				$query = $this->db->query("INSERT INTO loansassetslink (LoanBookingID, AssetIDLoan) VALUES ($loanBookingID, $assetID)");
-			}
-
-			//Get list of Asset Names
-			$assetNames = "";
-			foreach($assets as $assetID){
-				$currentAssetName = $this->db->query("SELECT AssetName,AssetTag From assets WHERE AssetID=$assetID");
-				$row = $currentAssetName->row();
-				$assetNames .= $row->AssetName . ' (' . $row->AssetTag . ')<br>';
-			}
-
-			//Get email address of user we want to send too
-			$query = $this->db->query("SELECT Email FROM users where UserID='$user'");
-			$email = $query->row()->Email;
-
-			log_message("error", "SENDING TOO");
-			log_message("error", $email);
-
-			//Send different email depending on whether its a loan or a setup
-			if($bookingType == "bookingLoan"){
-			} else if($bookingType == "bookingSetup"){
-				$this->email->message('<h1>Booking Details:</h1>Please find below the details of your setup<br><h2>Setup Date & Time</h2>Start Date: ' . $startDate . '<br>End Date: ' . $endDate . '<br>Start Period: ' . $startPeriod . '<br>End Period: ' . $endPeriod . '<br><h2>Assets & Location</h2>' . $assetNames . "<h2>Additional Details</h2>" . $additionalDetails);
-			}
-
-			if($bookingType == "bookingSetup"){
-				//Create Calendar Item for Outlook
-				//'2015-05-12 20:00:00'
-				$event = array(
-					'id' => 1,
-					'title' => 'IT Department Booking #' . $loanBookingID,
-					'address' => "",
-					'description' => 'Booking Details:\nPlease find below the details of your setup\n\nSetup Date & Time\nStart Date: ' . $startDate . '\nEnd Date: ' . $endDate . '\nStart Period: ' . $startPeriod . '\nEnd Period: ' . $endPeriod . '\n\nAssets & Location\n' . $assetNames . '\n\nAdditional Details\n' . $additionalDetails,
-					'datestart' => date('Ymd\THis', strtotime($startDate . " " . $startBookingTime)),
-					'dateend' => date('Ymd\THis', strtotime($endDate . " " . $endBookingTime)),
-					'address' => ""
-				);
-
-				// Build the ics file
-				$ical = "BEGIN:VCALENDAR\r\n";
-				$ical .= "VERSION:2.0\r\n";
-				$ical .= "PRODID:-//hacksw/handcal//NONSGML v1.0//EN\r\n";
-				$ical .= "CALSCALE:GREGORIAN\r\n";
-				$ical .= "BEGIN:VEVENT\r\n";
-				$ical .= "DTEND:" . $event['dateend'] . "\r\n";
-				$ical .= "UID:" . md5($event['title']) . "\r\n";
-				$ical .= "DTSTAMP:" . time() . "\r\n";
-				$ical .= "LOCATION:" . addslashes($event['address']) . "\r\n";
-				$ical .= "DESCRIPTION:" . $event['description'] . "\r\n";
-				$ical .= "URL;VALUE=URI:http://bookings/" . $event['id'] . "\r\n";
-				$ical .= "SUMMARY:" . addslashes($event['title']) . "\r\n";
-				$ical .= "DTSTART:" . $event['datestart'] . "\r\n";
-				$ical .= "END:VEVENT\r\n";
-				$ical .= "END:VCALENDAR\r\n";
-
-				$this->email->attach($ical, 'attachment', 'event.ics', 'text/calendar');
-			}
-
-			if($this->config->item('enableEmails')){
+			//We need to check if we are creating a new loan or modifying an existing loan
+			if($bookingOrModify == "booking")
+			{
+				//Insert a new booking into the loans table
+				$userID = $user;
+				$loanStatus = "";
 				if($isReservation == "true"){
-					$page_data['TYPE'] = "Reservation";
-					$page_data["MESSAGE"] = "The following reservation has been created";
+					$loanStatus = "Reserved";
 				}else{
-					$page_data['TYPE'] = "Booking";
-					$page_data["MESSAGE"] = "The following booking has been created";
+					$loanStatus = "Booked";
 				}
 
-				//Generate Email
-				$page_data["ADDITIONALDETAILS"] = $additionalDetails;
-				$page_data["BOOKINGID"] = $loanBookingID;
-				$page_data["BOOKINGDATE"] = "$startDate - $endDate";
-				$page_data["BOOKINGTIME"] = "$startPeriod - $endPeriod";
-				$page_data["ASSETS"] = $assetNames;
-				$page_data["ACTION"] = "Created";
+				$query = $this->db->query("INSERT INTO loans (UserID,LoanStartDate,LoanEndDate,LoanStatus,AdditionalNotes,LoanStartPeriod,LoanEndPeriod,LoanType) VALUES ($userID, STR_TO_DATE('$startDate', '%Y-%m-%d'), STR_TO_DATE('$endDate', '%Y-%m-%d'),'$loanStatus',{$this->db->escape($additionalDetails)},'$startPeriod','$endPeriod','$bookingType')");
 
-
-				$emailCode = $this->load->view('templates/email', $page_data, TRUE);
-
-				$sent;
-				if($isReservation == "true"){
-					$sent = $this->sendEmail($email, $this->config->item('from'), $this->config->item('cc'), $emailCode, 'IT Department Reservation #' . $loanBookingID);
-				}else{
-					$sent = $this->sendEmail($email, $this->config->item('from'), $this->config->item('cc'), $emailCode, 'IT Department Booking #' . $loanBookingID);
+				//Insert assets into assets table
+				//To do this we need to get the booking id from the previous query
+				$loanBookingID = $this->db->insert_id();
+				//Loop through each asset and add to loansssetslink table
+				foreach($assets as $assetID){
+					$query = $this->db->query("INSERT INTO loansassetslink (LoanBookingID, AssetIDLoan) VALUES ($loanBookingID, $assetID)");
 				}
 
-				if ($sent)
-				{
+				//Get list of Asset Names
+				$assetNames = "";
+				foreach($assets as $assetID){
+					$currentAssetName = $this->db->query("SELECT AssetName,AssetTag From assets WHERE AssetID=$assetID");
+					$row = $currentAssetName->row();
+					$assetNames .= $row->AssetName . ' (' . $row->AssetTag . ')<br>';
+				}
+
+				//Get email address of user we want to send too
+				$query = $this->db->query("SELECT Email FROM users where UserID='$user'");
+				$email = $query->row()->Email;
+
+				log_message("error", "SENDING TOO");
+				log_message("error", $email);
+
+				//Send different email depending on whether its a loan or a setup
+				if($bookingType == "bookingLoan"){
+				} else if($bookingType == "bookingSetup"){
+					$this->email->message('<h1>Booking Details:</h1>Please find below the details of your setup<br><h2>Setup Date & Time</h2>Start Date: ' . $startDate . '<br>End Date: ' . $endDate . '<br>Start Period: ' . $startPeriod . '<br>End Period: ' . $endPeriod . '<br><h2>Assets & Location</h2>' . $assetNames . "<h2>Additional Details</h2>" . $additionalDetails);
+				}
+
+				if($bookingType == "bookingSetup"){
+					//Create Calendar Item for Outlook
+					//'2015-05-12 20:00:00'
+					$event = array(
+						'id' => 1,
+						'title' => 'IT Department Booking #' . $loanBookingID,
+						'address' => "",
+						'description' => 'Booking Details:\nPlease find below the details of your setup\n\nSetup Date & Time\nStart Date: ' . $startDate . '\nEnd Date: ' . $endDate . '\nStart Period: ' . $startPeriod . '\nEnd Period: ' . $endPeriod . '\n\nAssets & Location\n' . $assetNames . '\n\nAdditional Details\n' . $additionalDetails,
+						'datestart' => date('Ymd\THis', strtotime($startDate . " " . $startBookingTime)),
+						'dateend' => date('Ymd\THis', strtotime($endDate . " " . $endBookingTime)),
+						'address' => ""
+					);
+
+					// Build the ics file
+					$ical = "BEGIN:VCALENDAR\r\n";
+					$ical .= "VERSION:2.0\r\n";
+					$ical .= "PRODID:-//hacksw/handcal//NONSGML v1.0//EN\r\n";
+					$ical .= "CALSCALE:GREGORIAN\r\n";
+					$ical .= "BEGIN:VEVENT\r\n";
+					$ical .= "DTEND:" . $event['dateend'] . "\r\n";
+					$ical .= "UID:" . md5($event['title']) . "\r\n";
+					$ical .= "DTSTAMP:" . time() . "\r\n";
+					$ical .= "LOCATION:" . addslashes($event['address']) . "\r\n";
+					$ical .= "DESCRIPTION:" . $event['description'] . "\r\n";
+					$ical .= "URL;VALUE=URI:http://bookings/" . $event['id'] . "\r\n";
+					$ical .= "SUMMARY:" . addslashes($event['title']) . "\r\n";
+					$ical .= "DTSTART:" . $event['datestart'] . "\r\n";
+					$ical .= "END:VEVENT\r\n";
+					$ical .= "END:VCALENDAR\r\n";
+
+					$this->email->attach($ical, 'attachment', 'event.ics', 'text/calendar');
+				}
+
+				if($this->config->item('enableEmails')){
+					if($isReservation == "true"){
+						$page_data['TYPE'] = "Reservation";
+						$page_data["MESSAGE"] = "The following reservation has been created";
+					}else{
+						$page_data['TYPE'] = "Booking";
+						$page_data["MESSAGE"] = "The following booking has been created";
+					}
+
+					//Generate Email
+					$page_data["ADDITIONALDETAILS"] = $additionalDetails;
+					$page_data["BOOKINGID"] = $loanBookingID;
+					$page_data["BOOKINGDATE"] = "$startDate - $endDate";
+					$page_data["BOOKINGTIME"] = "$startPeriod - $endPeriod";
+					$page_data["ASSETS"] = $assetNames;
+					$page_data["ACTION"] = "Created";
+
+
+					$emailCode = $this->load->view('templates/email', $page_data, TRUE);
+
+					$sent;
+					if($isReservation == "true"){
+						$sent = $this->sendEmail($email, $this->config->item('from'), $this->config->item('cc'), $emailCode, 'IT Department Reservation #' . $loanBookingID);
+					}else{
+						$sent = $this->sendEmail($email, $this->config->item('from'), $this->config->item('cc'), $emailCode, 'IT Department Booking #' . $loanBookingID);
+					}
+
+					if ($sent)
+					{
+						$returnMessage->Severity = "Success";
+						$returnMessage->Message = "Booking Was Successfull";
+					} else {
+						$returnMessage->Severity = "Danger";
+						$returnMessage->Message = $this->email->print_debugger();
+					}
+				}else{
 					$returnMessage->Severity = "Success";
 					$returnMessage->Message = "Booking Was Successfull";
-				} else {
-					$returnMessage->Severity = "Danger";
-					$returnMessage->Message = $this->email->print_debugger();
 				}
-			}else{
-				$returnMessage->Severity = "Success";
-				$returnMessage->Message = "Booking Was Successfull";
+			}elseif($bookingOrModify == "modify"){
+				//Modify exisiting booking in loans table
+				$loanBookingID = $modifyBookingID;
+
+				$userID = $user;
+				$loanStatus = "";
+				if($isReservation == "true"){
+					$loanStatus = "Reserved";
+					$query = $this->db->query("UPDATE loans SET UserID = $userID, LoanStartDate = STR_TO_DATE('$startDate', '%Y-%m-%d'), LoanEndDate = STR_TO_DATE('$endDate', '%Y-%m-%d'), LoanStatus = 'Reserved', AdditionalNotes = {$this->db->escape($additionalDetails)}, LoanStartPeriod = '$startPeriod', LoanEndPeriod = '$endPeriod', LoanType = '$bookingType', ReasonForModify = '$reasonForModify' WHERE LoanBookingID='$loanBookingID'");
+				}else{
+					$loanStatus = "Booked";
+					$query = $this->db->query("UPDATE loans SET UserID = $userID, LoanStartDate = STR_TO_DATE('$startDate', '%Y-%m-%d'), LoanEndDate = STR_TO_DATE('$endDate', '%Y-%m-%d'), LoanStatus = 'Booked', AdditionalNotes = {$this->db->escape($additionalDetails)}, LoanStartPeriod = '$startPeriod', LoanEndPeriod = '$endPeriod', LoanType = '$bookingType', ReasonForModify = '$reasonForModify' WHERE LoanBookingID='$loanBookingID'");
+				}
+
+				//Insert assets into assets table
+				//To do this we need to get the booking id from the previous query
+				
+				//Loop through each asset and add to loansssetslink table
+				foreach($assets as $assetID){
+					if(!(in_array($assetID,$assetsAlreadyExist))){
+						$query = $this->db->query("INSERT INTO loansassetslink (LoanBookingID, AssetIDLoan) VALUES ($loanBookingID, $assetID)");
+					}
+				}
+
+				//Remove any assets from the booking
+				//Check if not empty as no assets may need to removed
+				if(isset($assetsRemoved)){
+					foreach($assetsRemoved as $assetID){
+						$query = $this->db->query("DELETE FROM loansassetslink WHERE LoanBookingID = $loanBookingID AND AssetIDLoan = $assetID");
+					}
+				}
+
+				//Get list of Asset Names
+				$assetNames = "";
+				foreach($assets as $assetID){
+					$currentAssetName = $this->db->query("SELECT AssetName,AssetTag From assets WHERE AssetID=$assetID");
+					$row = $currentAssetName->row();
+					$assetNames .= $row->AssetName . ' (' . $row->AssetTag . ')<br>';
+				}
+
+				//Get list of Asset Names Removed
+				$assetNamesRemoved = "";
+				if(isset($assetsRemoved)){
+					foreach($assetsRemoved as $assetID){
+						$currentAssetName = $this->db->query("SELECT AssetName,AssetTag From assets WHERE AssetID=$assetID");
+						$row = $currentAssetName->row();
+						$assetNamesRemoved .= $row->AssetName . ' (' . $row->AssetTag . ')<br>';
+					}
+				}
+
+				//Get email address of user we want to send too
+				$query = $this->db->query("SELECT Email FROM users where UserID='$user'");
+				$email = $query->row()->Email;
+
+				log_message("error", "SENDING TOO");
+				log_message("error", $email);
+
+				//Send different email depending on whether its a loan or a setup
+				if($bookingType == "bookingLoan"){
+				} else if($bookingType == "bookingSetup"){
+					$this->email->message('<h1>Booking Details:</h1>Please find below the details of your setup<br><h2>Setup Date & Time</h2>Start Date: ' . $startDate . '<br>End Date: ' . $endDate . '<br>Start Period: ' . $startPeriod . '<br>End Period: ' . $endPeriod . '<br><h2>Assets & Location</h2>' . $assetNames . "<h2>Additional Details</h2>" . $additionalDetails);
+				}
+
+				if($this->config->item('enableEmails')){
+					if($isReservation == "true"){
+						$page_data['TYPE'] = "Reservation";
+						$page_data["MESSAGE"] = "The following reservation has been modified";
+					}else{
+						$page_data['TYPE'] = "Booking";
+						$page_data["MESSAGE"] = "The following booking has been modified";
+					}
+
+					//Generate Email
+					$page_data["ADDITIONALDETAILS"] = $additionalDetails;
+					$page_data["REASONFORMODIFY"] = $reasonForModify;
+					$page_data["BOOKINGID"] = $loanBookingID;
+					$page_data["BOOKINGDATE"] = "$startDate - $endDate";
+					$page_data["BOOKINGTIME"] = "$startPeriod - $endPeriod";
+					$page_data["ASSETS"] = $assetNames;
+					$page_data["ASSETSREMOVED"] = $assetNamesRemoved;
+					$page_data["ACTION"] = "Modified";
+
+					$emailCode = $this->load->view('templates/emailModify', $page_data, TRUE);
+
+					$sent;
+					if($isReservation == "true"){
+						$sent = $this->sendEmail($email, $this->config->item('from'), $this->config->item('cc'), $emailCode, 'IT Department Reservation Modified #' . $loanBookingID);
+					}else{
+						$sent = $this->sendEmail($email, $this->config->item('from'), $this->config->item('cc'), $emailCode, 'IT Department Booking Modified #' . $loanBookingID);
+					}
+
+					if ($sent)
+					{
+						$returnMessage->Severity = "Success";
+						$returnMessage->Message = "Booking has been updated successfully";
+					} else {
+						$returnMessage->Severity = "Danger";
+						$returnMessage->Message = $this->email->print_debugger();
+					}
+				}else{
+					$returnMessage->Severity = "Success";
+					$returnMessage->Message = "Booking has been updated successfully";
+				}
 			}
 
 			echo json_encode($returnMessage);
@@ -879,5 +1063,236 @@ class ManageLoans extends CI_Controller {
 	{
 		$this->load->model('ManageLoans_model');
 		return $this->ManageLoans_model->getListOfLoans();
+	}
+
+	public function getBookingByID()
+	{
+		$bookingID;
+		//Check if we recieved a loanBookingID
+		if(isset($_POST['bookingID'])){
+			if(empty($_POST['bookingID'])){
+			  echo "The booking ID field must be filled out before saving";
+			  return;
+			}      
+			else $bookingID = $_POST['bookingID'];
+		} else {
+			echo "Booking ID has not been initialised";
+			return;
+		}
+
+		$loanData = array();
+
+		//This will fetch a list of loans currently in the system
+		$query = $this->db->query("SELECT * FROM loans WHERE LoanBookingID=$bookingID");
+		foreach($query->result() as $row){
+			//Loans Table
+			$loanData["loanBookingID"] = $row->LoanBookingID;
+			$loanData["userID"] = $row->UserID;
+			$loanData["loanStartDate"] = $row->LoanStartDate;
+			$loanData["loanEndDate"] = $row->LoanEndDate;
+			$loanData["loanStatus"] = $row->LoanStatus;
+			$loanData["additionalNotes"] = $row->AdditionalNotes;
+			$loanData["loanStartPeriod"] = $row->LoanStartPeriod;
+			$loanData["loanEndPeriod"] = $row->LoanEndPeriod;
+			$loanData["loanType"] = $row->LoanType;
+			$loanData["reasonForModify"] = $row->ReasonForModify;
+
+			if($loanData["loanType"] == "bookingLoan"){
+				if($loanData["loanStatus"] != "Completed"){
+					
+					//Users Table (Find what user id matches which user)
+					$query2 = $this->db->query("SELECT Forename,Surname FROM users WHERE UserID='{$loanData["userID"]}'");
+					$name;
+					foreach($query2->result() as $row){
+						$loanData["forename"] = $row->Forename;
+						$loanData["surname"] = $row->Surname;
+					}
+
+					
+					//Loans Assets Link Table
+					$query3 = $this->db->query("SELECT * FROM loansassetslink WHERE LoanBookingID='$bookingID'");
+					$loanData["assets"] = array();
+					$test = "";
+					foreach($query3->result() as $row){
+						$assetIDLoan = $row->AssetIDLoan;
+
+						//Find asset in Assets table
+						$query4 = $this->db->query("SELECT * FROM assets WHERE AssetID='$assetIDLoan'");
+						foreach($query4->result() as $row){
+							array_push($loanData["assets"], array($row->AssetName => $row->AssetTag . "," . $row->AssetID));
+						}
+					}
+					$loanData["test"] = $test;
+				}
+			}
+		}
+
+		//Get avaliable equipment
+		if($loanData["loanStartDate"] == $loanData["loanEndDate"]){
+			$loanDate = $loanData["loanStartDate"];
+			$startPeriod = $loanData["loanStartPeriod"];
+			$endPeriod = $loanData["loanEndPeriod"];
+
+			$avaliableAssets = array();
+
+			$query = $this->db->query("SELECT * FROM assets ORDER BY AssetName ASC,AssetTag");
+			foreach($query->result() as $row){
+				array_push($avaliableAssets, $row->AssetID);
+				$query2 = $this->db->query("SELECT * FROM loans RIGHT OUTER JOIN loansassetslink ON loans.LoanBookingID=loansassetslink.LoanBookingID");
+				foreach($query2->result() as $row2){
+					//Now we need to decide whether the current asset is in use for the specified time period
+					//The user can book a loan if the start and end period are before or after any current loans.
+					//Do not check loans which have been completed
+					if($row2->AssetIDLoan == $row->AssetID && $row2->LoanStatus != "Completed"){
+						log_message('error', "Found Asset: " . $row->AssetID);
+						$assetAvaliableBefore = true;
+						$assetAvaliableAfter = true;
+						$assetAvaliableDate = true;
+	
+						//Check if the asset has been loaned out from "Book Equipment"
+						if($row2->LoanStartDate == $loanDate && $row2->LoanEndDate == $loanDate){
+							log_message('error', "Asset has a booking today");
+							if($startPeriod < $row2->LoanStartPeriod  && $endPeriod < $row2->LoanStartPeriod){
+								log_message('error', $startPeriod . " is less than " . $row2->LoanStartPeriod  . " and " . $endPeriod . " is less than " . $row2->LoanStartPeriod);
+								log_message('error', "Asset is avaliable for booking before start period");
+							} else{
+								log_message('error', $startPeriod . " is less than " . $row2->LoanStartPeriod  . " and " . $endPeriod . " is less than " . $row2->LoanStartPeriod);
+								log_message('error', "Asset is not avaliable for booking before start period");
+								$assetAvaliableBefore = false;
+							}
+							if($startPeriod > $row2->LoanEndPeriod && $endPeriod > $row2->LoanEndPeriod) {
+								log_message('error', $startPeriod . " is greater than " . $row2->LoanEndPeriod  . " and " . $endPeriod . " is greater than " . $row2->LoanEndPeriod);
+								log_message('error', "Asset is avaliable for booking after start period");
+							} else{
+								log_message('error', $startPeriod . " is greater than " . $row2->LoanEndPeriod  . " and " . $endPeriod . " is greater than " . $row2->LoanEndPeriod);
+								log_message('error', "Asset is not avaliable for booking after start period");
+								$assetAvaliableAfter = false;
+							}
+						} else {
+							//If the Loan spans multiple days then see if the asset is avaliable
+							if($loanDate < $row2->LoanStartDate || $loanDate > $row2->LoanEndDate){
+								//Asset avaliable
+								log_message('error', "Asset avaliable for todays date");
+							} else {
+								log_message('error', "Asset is not avaliable for todays date");
+								$assetAvaliableDate = false;
+							}
+						}
+	
+						//If asset is overdue then mark as not avaliable
+						if($row2->LoanStatus == "Overdue"){
+							log_message('error', "Asset is not avaliable for as it is overdue from a previous booking");
+							$assetAvaliableDate = false;
+						}
+	
+						//Remove asset if it currently in use at selected time
+						if(($assetAvaliableBefore == false && $assetAvaliableAfter == false) || $assetAvaliableDate == false){
+							log_message('error', "Removing Asset since its not avaliable");
+							foreach($avaliableAssets as $assetID){
+								if($assetID == $row->AssetID){
+									unset($avaliableAssets[array_search($assetID, $avaliableAssets)]);
+									$avaliableAssets = array_values($avaliableAssets);
+								}
+							}
+						}
+					}
+				}
+			}
+	
+			$loanData["equipment"] = array();
+	
+			foreach($avaliableAssets as $asset){
+				$query = $this->db->query("SELECT * FROM assets WHERE AssetID=$asset");
+				foreach($query->result() as $row){
+					$assetJSON = new stdClass();
+					$assetJSON->AssetName = $row->AssetName;
+					$assetJSON->AssetID = $row->AssetID;
+					$assetJSON->AssetDescription = $row->AssetDescription;
+					$assetJSON->AssetTag = $row->AssetTag;
+					array_push($loanData["equipment"], $assetJSON);
+				}
+			}
+		}else{
+			$loanStartDate = $loanData["loanStartDate"];
+			$loanEndDate = $loanData["loanEndDate"];
+	
+			$avaliableAssets = array();
+	
+			$query = $this->db->query("SELECT * FROM assets ORDER BY AssetName ASC,AssetTag");
+	
+			foreach($query->result() as $row){
+				array_push($avaliableAssets, $row->AssetID);
+				$query2 = $this->db->query("SELECT * FROM loans RIGHT OUTER JOIN loansassetslink ON loans.LoanBookingID=loansassetslink.LoanBookingID");
+				foreach($query2->result() as $row2){
+					if($row2->AssetIDLoan == $row->AssetID && $row2->LoanStatus != "Completed"){
+						log_message('error', "Found Asset: " . $row->AssetID);
+						$assetAvaliableBefore = true;
+						$assetAvaliableAfter = true;
+						$assetAvaliableDate = true;
+	
+						//If the Loan start date and loan end date are the same then check periods to see if asset is avaliable
+						if($row2->LoanStartDate == $loanStartDate && $row2->LoanEndDate == $loanStartDate){
+							//Since this loan is for a whole day then mark as unavalaible
+							$assetAvaliableDate = false;
+						} else {
+							//If the Loan spans multiple days then see if the asset is avaliable
+							if($loanStartDate < $row2->LoanStartDate && $loanEndDate < $row2->LoanStartDate){
+								//Asset avaliable
+								//log_message('error', $loanStartDate . " is less than " . $row2->LoanStartDate  . " and " . $loanEndDate . " is less than " . $row2->LoanStartDate);
+								log_message('error', "Asset avaliable for todays date");
+							} else {
+								//log_message('error', $loanStartDate . " is less than " . $row2->LoanStartDate  . " and " . $loanEndDate . " is less than " . $row2->LoanStartDate);
+								log_message('error', "Asset is not avaliable for todays date");
+								$assetAvaliableBefore = false;
+							}
+							if($loanStartDate > $row2->LoanEndDate && $loanEndDate > $row2->LoanEndDate){
+								//Asset avaliable
+								//log_message('error', $loanStartDate . " is less than " . $row2->LoanEndDate  . " and " . $loanEndDate . " is less than " . $row2->LoanEndDate);
+								log_message('error', "Asset avaliable for todays date");
+							} else {
+								//log_message('error', $loanStartDate . " is less than " . $row2->LoanEndDate  . " and " . $loanEndDate . " is less than " . $row2->LoanEndDate);
+								log_message('error', "Asset is not avaliable for todays date");
+								$assetAvaliableAfter = false;
+							}
+						}
+	
+						//If asset is overdue then mark as not avaliable
+						if($row2->LoanStatus == "Overdue"){
+							log_message('error', "Asset is not avaliable for as it is overdue from a previous booking");
+							$assetAvaliableDate = false;
+						}
+	
+						//Remove asset if it currently in use at selected time
+						if(($assetAvaliableBefore == false && $assetAvaliableAfter == false) || $assetAvaliableDate == false){
+							log_message('error', "Removing Asset since its not avaliable");
+							foreach($avaliableAssets as $assetID){
+								if($assetID == $row->AssetID){
+									unset($avaliableAssets[array_search($assetID, $avaliableAssets)]);
+									$avaliableAssets = array_values($avaliableAssets);
+								}
+							}
+						}
+					}
+				}
+			}
+	
+			$assetsJSON = array();
+	
+			foreach($avaliableAssets as $asset){
+				$query = $this->db->query("SELECT * FROM assets WHERE AssetID=$asset");
+				foreach($query->result() as $row){
+					$assetJSON = new stdClass();
+					$assetJSON->AssetName = $row->AssetName;
+					$assetJSON->AssetID = $row->AssetID;
+					$assetJSON->AssetDescription = $row->AssetDescription;
+					$assetJSON->AssetTag = $row->AssetTag;
+					array_push($assetsJSON, $assetJSON);
+				}
+			}
+
+			$loanData["equipment"] = $assetJSON;
+		}
+
+		echo json_encode($loanData);
 	}
 }
